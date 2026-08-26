@@ -1,29 +1,28 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  /* Tokyo Midnight Cyberpunk Palette */
-  --bg-app: #08090E;
-  --bg-surface: #0E111A;
-  --bg-surface-elevated: #141824;
-  --bg-card: rgba(14, 17, 26, 0.88);
-  
-  --border-subtle: rgba(0, 210, 255, 0.12);
-  --border-focus: rgba(0, 210, 255, 0.5);
+  --bg-app: #090D16;
+  --bg-surface: #0F1626;
+  --bg-surface-elevated: #151F33;
+  --bg-card: rgba(15, 23, 42, 0.75);
 
-  --brand-primary: #00D2FF;
-  --brand-accent: #00D2FF;
-  --status-emerald: #00FFA3;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-focus: rgba(56, 189, 248, 0.4);
+
+  --brand-primary: #0284C7;
+  --brand-accent: #38BDF8;
+  --status-emerald: #10B981;
   --status-amber: #F59E0B;
-  --status-rose: #FF0055;
-  
+  --status-rose: #EF4444;
+
   --text-primary: #F8FAFC;
   --text-secondary: #94A3B8;
   --text-tertiary: #64748B;
-  
+
   --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
@@ -40,38 +39,37 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   line-height: 1.5;
-  background-image: 
-    radial-gradient(ellipse 70% 45% at 50% -10%, rgba(0, 210, 255, 0.09), transparent),
-    radial-gradient(ellipse 50% 40% at 85% 90%, rgba(157, 78, 221, 0.06), transparent);
+  background-image:
+    radial-gradient(ellipse 70% 50% at 50% -10%, rgba(14, 116, 144, 0.12), transparent),
+    radial-gradient(ellipse 50% 40% at 85% 90%, rgba(99, 102, 241, 0.05), transparent);
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
 }
 
 /* ==========================================================================
-   TOKYO MIDNIGHT CYBERPUNK GLASS & SURFACE STYLING
+   ENTERPRISE GLASS & SURFACE STYLING
    ========================================================================== */
 .glass-panel {
   background: var(--bg-card);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(0, 210, 255, 0.14);
-  border-radius: 16px;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6), inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
-  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .glass-panel:hover {
-  border-color: rgba(0, 210, 255, 0.28);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.7), 0 0 15px rgba(0, 210, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 .glass-badge {
-  background: rgba(0, 210, 255, 0.06);
-  border: 1px solid rgba(0, 210, 255, 0.22);
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
   padding: 3px 8px;
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.04em;
   display: inline-flex;
   align-items: center;
@@ -88,7 +86,7 @@ body {
   padding: 2px 8px;
   border-radius: 9999px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   font-family: var(--font-mono);
 }
 
@@ -109,88 +107,73 @@ body {
   height: 13px;
   border-radius: 50%;
   background: inherit;
-  opacity: 0.6;
-  animation: pulse-subtle 2.2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  opacity: 0.5;
+  animation: pulse-subtle 2.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
 }
 
 @keyframes pulse-subtle {
-  0% { transform: scale(0.7); opacity: 0.8; }
-  60% { transform: scale(1.8); opacity: 0; }
-  100% { transform: scale(1.8); opacity: 0; }
+  0% {
+    transform: scale(0.7);
+    opacity: 0.7;
+  }
+
+  60% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
 }
 
 /* ==========================================================================
    BUTTON & INTERACTION UTILITIES
    ========================================================================== */
 .btn-primary {
-  background: linear-gradient(135deg, #00D2FF 0%, #0095FF 100%);
-  color: #08090E;
-  font-weight: 700;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 0 16px rgba(0, 210, 255, 0.35);
-  transition: all 0.2s ease;
+  background: #0284C7;
+  color: #FFFFFF;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: background-color 0.15s ease, transform 0.1s ease;
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, #33DCFF 0%, #1AA3FF 100%);
-  box-shadow: 0 0 24px rgba(0, 210, 255, 0.55);
-  transform: translateY(-1px);
+  background: #0369A1;
 }
 
 .btn-primary:active {
-  transform: translateY(0);
+  transform: scale(0.99);
 }
 
 .btn-secondary {
-  background: rgba(20, 24, 36, 0.8);
+  background: rgba(30, 41, 59, 0.7);
   color: #E2E8F0;
-  font-weight: 600;
-  border-radius: 10px;
-  border: 1px solid rgba(0, 210, 255, 0.15);
-  transition: all 0.2s ease;
+  font-weight: 500;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: background-color 0.15s ease;
 }
 
 .btn-secondary:hover {
-  background: rgba(30, 36, 54, 0.9);
-  border-color: rgba(0, 210, 255, 0.35);
-  color: #00D2FF;
-}
-
-.cyber-btn-primary {
-  background: linear-gradient(135deg, #00D2FF 0%, #0088FF 100%);
-  color: #08090E;
-  font-weight: 700;
-  border-radius: 10px;
-  box-shadow: 0 0 18px rgba(0, 210, 255, 0.4);
-  transition: all 0.2s ease;
-}
-
-.cyber-btn-primary:hover {
-  box-shadow: 0 0 28px rgba(0, 210, 255, 0.65);
-  filter: brightness(1.1);
-}
-
-.cyber-btn-secondary {
-  background: rgba(14, 18, 28, 0.8);
-  color: #94A3B8;
-  border: 1px solid rgba(0, 210, 255, 0.15);
-  border-radius: 10px;
-  transition: all 0.2s ease;
-}
-
-.cyber-btn-secondary:hover {
-  color: #00D2FF;
-  border-color: rgba(0, 210, 255, 0.4);
-  background: rgba(20, 26, 40, 0.95);
+  background: rgba(51, 65, 85, 0.85);
+  color: #FFFFFF;
 }
 
 /* ==========================================================================
    TICKER MARQUEE
    ========================================================================== */
 @keyframes marquee-scroll {
-  0% { transform: translateX(0%); }
-  100% { transform: translateX(-50%); }
+  0% {
+    transform: translateX(0%);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
 }
 
 .animate-marquee {
@@ -204,7 +187,7 @@ body {
 }
 
 /* ==========================================================================
-   CUSTOM SCROLLBARS
+   CUSTOM SCROLLBAR
    ========================================================================== */
 ::-webkit-scrollbar {
   width: 6px;
@@ -212,14 +195,99 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(8, 9, 14, 0.8);
+  background: rgba(15, 23, 42, 0.6);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 210, 255, 0.2);
+  background: rgba(100, 116, 139, 0.35);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 210, 255, 0.4);
+  background: rgba(100, 116, 139, 0.6);
+}
+
+/* ==========================================================================
+   MAP STYLING
+   ========================================================================== */
+.leaflet-container {
+  background: #090D16 !important;
+  font-family: var(--font-body) !important;
+  border-radius: 12px;
+}
+
+.leaflet-tile {
+  filter: brightness(0.65) invert(1) contrast(3.0) hue-rotate(200deg) saturate(0.2) brightness(0.7) !important;
+}
+
+.leaflet-popup-content-wrapper {
+  background: rgba(15, 23, 42, 0.96) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  backdrop-filter: blur(12px) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6) !important;
+  padding: 0 !important;
+}
+
+.leaflet-popup-content {
+  margin: 12px 14px !important;
+  line-height: 1.4 !important;
+}
+
+.leaflet-popup-tip {
+  background: rgba(15, 23, 42, 0.96) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+/* ==========================================================================
+   ANIMATIONS & TRANSITIONS
+   ========================================================================== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slideInRight {
+  animation: slideInRight 0.25s ease-out forwards;
+}
+
+/* ==========================================================================
+   TYPOGRAPHY
+   ========================================================================== */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+  letter-spacing: -0.015em;
+}
+
+.font-mono {
+  font-family: var(--font-mono);
 }

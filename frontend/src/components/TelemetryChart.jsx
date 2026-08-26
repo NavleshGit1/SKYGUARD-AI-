@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { sounds } from '../utils/audio';
 
-// Tokyo Midnight Hyper-Red Dot ONLY rendered on injected fault / anomaly readings
+// Crisp solid red dot ONLY rendered on injected fault / anomaly readings
 const renderInjectedFaultDot = (props) => {
   const { cx, cy, payload } = props;
   if (!cx || !cy) return null;
@@ -33,8 +33,8 @@ const renderInjectedFaultDot = (props) => {
         key={`fault-dot-${cx}-${cy}`}
         cx={cx}
         cy={cy}
-        r={5.5}
-        fill="#FF0055"
+        r={5}
+        fill="#EF4444"
         stroke="#FFFFFF"
         strokeWidth={1.5}
       />
@@ -120,10 +120,10 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <Activity className="w-4 h-4 text-[#00D2FF]" />
+              <Activity className="w-4 h-4 text-sky-400" />
               High-Precision Telemetry & Imputation Engine
             </h2>
-            <span className="glass-badge text-[#00FFA3] border-[#00FFA3]/30 text-[10px] font-mono font-bold">
+            <span className="glass-badge text-emerald-400 border-emerald-500/30 text-[10px] font-mono font-bold">
               {selectedStation?.station_id || 'AWS-DEL-01'}
             </span>
           </div>
@@ -142,7 +142,7 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
               const st = stations.find((s) => s.station_id === e.target.value);
               if (st) onSelectStation(st);
             }}
-            className="bg-slate-900/90 border border-slate-700/80 text-white text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:border-[#00D2FF] font-mono font-semibold shadow-inner"
+            className="bg-slate-900/90 border border-slate-700/80 text-white text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:border-sky-500 font-mono font-semibold shadow-inner"
           >
             {stations.map((st) => (
               <option key={st.station_id} value={st.station_id} className="bg-slate-950 text-white">
@@ -162,11 +162,10 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
               <button
                 key={id}
                 onClick={() => handleParamChange(id)}
-                className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
-                  selectedParam === id
-                    ? 'bg-[#00D2FF] text-[#08090E] shadow-[0_0_12px_rgba(0,210,255,0.4)]'
+                className={`px-2.5 py-1 rounded-lg font-bold transition-all ${selectedParam === id
+                    ? 'bg-sky-500 text-slate-950 shadow-sm'
                     : 'text-slate-400 hover:text-white'
-                }`}
+                  }`}
               >
                 {label}
               </button>
@@ -188,17 +187,17 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
       {/* Mini Stats Banner */}
       <div className="flex items-center gap-4 px-3 py-1.5 rounded-xl bg-slate-900/40 border border-slate-800/80 mb-2 text-xs font-mono text-slate-300">
         <span className="text-[11px] text-slate-400 uppercase font-sans">Observed Range:</span>
-        <span>Min: <strong className="text-[#00D2FF]">{minTemp}°C</strong></span>
+        <span>Min: <strong className="text-sky-400">{minTemp}°C</strong></span>
         <span className="text-slate-700">|</span>
-        <span>Avg: <strong className="text-[#00FFA3]">{avgTemp}°C</strong></span>
+        <span>Avg: <strong className="text-emerald-400">{avgTemp}°C</strong></span>
         <span className="text-slate-700">|</span>
-        <span>Max: <strong className="text-[#F59E0B]">{maxTemp}°C</strong></span>
+        <span>Max: <strong className="text-amber-400">{maxTemp}°C</strong></span>
         <div className="ml-auto flex items-center gap-3 text-[10px]">
-          <span className="flex items-center gap-1 text-[#00FFA3]">
-            <span className="w-2 h-0.5 bg-[#00FFA3] border-t border-dashed" /> Dashed = AE Imputed (Self-Healed)
+          <span className="flex items-center gap-1 text-emerald-400">
+            <span className="w-2 h-0.5 bg-emerald-400 border-t border-dashed" /> Dashed = AE Imputed (Self-Healed)
           </span>
-          <span className="flex items-center gap-1 text-[#FF0055]">
-            <span className="w-2 h-2 rounded-full bg-[#FF0055]" /> Red Dot = Injected Fault
+          <span className="flex items-center gap-1 text-rose-400">
+            <span className="w-2 h-2 rounded-full bg-rose-500" /> Red Dot = Injected Fault
           </span>
         </div>
       </div>
@@ -212,29 +211,29 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={chartData} margin={{ top: 10, right: 15, left: -15, bottom: 0 }}>
-              {/* Clean Tokyo Midnight SVG Gradients */}
+              {/* Clean SVG Gradients */}
               <defs>
                 <linearGradient id="tempGlow" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#00D2FF" stopOpacity={0.25} />
-                  <stop offset="100%" stopColor="#00D2FF" stopOpacity={0.0} />
+                  <stop offset="0%" stopColor="#38BDF8" stopOpacity={0.2} />
+                  <stop offset="100%" stopColor="#38BDF8" stopOpacity={0.0} />
                 </linearGradient>
               </defs>
 
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0, 210, 255, 0.05)" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
 
               <XAxis
                 dataKey="time"
                 stroke="#64748B"
                 fontSize={10}
                 tickLine={false}
-                axisLine={{ stroke: 'rgba(0, 210, 255, 0.15)' }}
+                axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
               />
 
               {/* Left Y Axis: Temp */}
               {(selectedParam === 'ALL' || selectedParam === 'TEMP') && (
                 <YAxis
                   yAxisId="left"
-                  stroke="#00D2FF"
+                  stroke="#38BDF8"
                   fontSize={11}
                   domain={['auto', 'auto']}
                   tickFormatter={(v) => `${v}°C`}
@@ -246,7 +245,7 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
                 <YAxis
                   yAxisId="right-pres"
                   orientation="right"
-                  stroke="#9D4EDD"
+                  stroke="#818CF8"
                   fontSize={11}
                   domain={['auto', 'auto']}
                   tickFormatter={(v) => `${v}hPa`}
@@ -258,7 +257,7 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
                 <YAxis
                   yAxisId="right-rh"
                   orientation="right"
-                  stroke="#00E5FF"
+                  stroke="#2DD4BF"
                   fontSize={11}
                   domain={[0, 100]}
                   tickFormatter={(v) => `${v}%`}
@@ -267,10 +266,10 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
 
               <Tooltip
                 contentStyle={{
-                  backgroundColor: 'rgba(8, 9, 14, 0.96)',
-                  borderColor: 'rgba(0, 210, 255, 0.45)',
+                  backgroundColor: 'rgba(3, 7, 18, 0.95)',
+                  borderColor: 'rgba(56, 189, 248, 0.4)',
                   borderRadius: '12px',
-                  boxShadow: '0 15px 35px rgba(0,0,0,0.85), 0 0 15px rgba(0, 210, 255, 0.2)',
+                  boxShadow: '0 15px 35px rgba(0,0,0,0.8), 0 0 15px rgba(56, 189, 248, 0.2)',
                   fontSize: '12px',
                   fontFamily: 'JetBrains Mono, monospace'
                 }}
@@ -288,90 +287,90 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
                 />
               )}
 
-              {/* 1. Temperature Observed Curve (Neon Ice Blue with Hyper-Red Dot on Injected Fault) */}
+              {/* 1. Temperature Observed Curve (Cyan with Red Dot on Injected Fault) */}
               {(selectedParam === 'ALL' || selectedParam === 'TEMP') && (
                 <Line
                   yAxisId="left"
                   type="monotone"
                   dataKey="temperature"
                   name="Temperature (°C)"
-                  stroke="#00D2FF"
+                  stroke="#38BDF8"
                   strokeWidth={2.5}
                   dot={renderInjectedFaultDot}
-                  activeDot={{ r: 5, fill: '#00D2FF', stroke: '#FFF', strokeWidth: 2 }}
+                  activeDot={{ r: 5, fill: '#38BDF8', stroke: '#FFF', strokeWidth: 2 }}
                 />
               )}
 
-              {/* 2. AE Imputed Temperature (Matrix Neon Green Dashed) */}
+              {/* 2. AE Imputed Temperature (Dashed Green Trace) */}
               {(selectedParam === 'ALL' || selectedParam === 'TEMP') && (
                 <Line
                   yAxisId="left"
                   type="monotone"
                   dataKey="imputed_temperature"
                   name="AE Imputed Temp (°C)"
-                  stroke="#00FFA3"
+                  stroke="#10B981"
                   strokeWidth={2.4}
                   strokeDasharray="5 5"
                   dot={false}
-                  activeDot={{ r: 4, fill: '#00FFA3', stroke: '#FFF', strokeWidth: 1.5 }}
+                  activeDot={{ r: 4, fill: '#10B981', stroke: '#FFF', strokeWidth: 1.5 }}
                 />
               )}
 
-              {/* 3. Barometric Pressure Curve (Electric Violet with Hyper-Red Dot on Injected Fault) */}
+              {/* 3. Barometric Pressure Curve (Purple with Red Dot on Injected Fault) */}
               {(selectedParam === 'ALL' || selectedParam === 'PRES') && (
                 <Line
                   yAxisId="right-pres"
                   type="monotone"
                   dataKey="pressure"
                   name="Pressure (hPa)"
-                  stroke="#9D4EDD"
-                  strokeWidth={2.2}
+                  stroke="#818CF8"
+                  strokeWidth={2}
                   dot={selectedParam === 'PRES' ? renderInjectedFaultDot : false}
-                  activeDot={{ r: 5, fill: '#9D4EDD', stroke: '#FFF', strokeWidth: 2 }}
+                  activeDot={{ r: 5, fill: '#818CF8', stroke: '#FFF', strokeWidth: 2 }}
                 />
               )}
 
-              {/* 4. AE Imputed Pressure (Matrix Neon Green Dashed when viewing Pressure) */}
+              {/* 4. AE Imputed Pressure (Dashed Green Trace when viewing Pressure) */}
               {selectedParam === 'PRES' && (
                 <Line
                   yAxisId="right-pres"
                   type="monotone"
                   dataKey="imputed_pressure"
                   name="AE Imputed Pres (hPa)"
-                  stroke="#00FFA3"
+                  stroke="#10B981"
                   strokeWidth={2.4}
                   strokeDasharray="5 5"
                   dot={false}
-                  activeDot={{ r: 4, fill: '#00FFA3', stroke: '#FFF', strokeWidth: 1.5 }}
+                  activeDot={{ r: 4, fill: '#10B981', stroke: '#FFF', strokeWidth: 1.5 }}
                 />
               )}
 
-              {/* 5. Humidity Curve (Neon Cyan with Hyper-Red Dot on Injected Fault) */}
+              {/* 5. Humidity Curve (Teal with Red Dot on Injected Fault) */}
               {(selectedParam === 'ALL' || selectedParam === 'RH') && (
                 <Line
                   yAxisId={selectedParam === 'RH' ? 'right-rh' : 'left'}
                   type="monotone"
                   dataKey="humidity"
                   name="Relative Humidity (%)"
-                  stroke="#00E5FF"
-                  strokeWidth={2.2}
+                  stroke="#2DD4BF"
+                  strokeWidth={2}
                   dot={selectedParam === 'RH' ? renderInjectedFaultDot : false}
-                  activeDot={{ r: 5, fill: '#00E5FF', stroke: '#FFF', strokeWidth: 2 }}
+                  activeDot={{ r: 5, fill: '#2DD4BF', stroke: '#FFF', strokeWidth: 2 }}
                 />
               )}
 
-              {/* 6. AE Imputed Humidity (Matrix Neon Green Dashed when viewing Humidity) */}
+              {/* 6. AE Imputed Humidity (Dashed Green Trace when viewing Humidity) */}
               {selectedParam === 'RH' && (
                 <Line
                   yAxisId="right-rh"
                   type="monotone"
                   dataKey="imputed_humidity"
                   name="AE Imputed Humidity (%)"
-                  stroke="#00FFA3"
+                  stroke="#10B981"
                   strokeWidth={2.4}
                   strokeDasharray="5 5"
                   dot={false}
-                  activeDot={{ r: 4, fill: '#00FFA3', stroke: '#FFF', strokeWidth: 1.5 }}
+                  activeDot={{ r: 4, fill: '#10B981', stroke: '#FFF', strokeWidth: 1.5 }}
                 />
               )}
             </ComposedChart>
