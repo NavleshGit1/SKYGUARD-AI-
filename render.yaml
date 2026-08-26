@@ -1,5 +1,5 @@
 services:
-  # SkyGuard AI FastAPI Streaming Backend Service
+  # 1. SkyGuard AI FastAPI Streaming Backend Service
   - type: web
     name: skyguard-backend
     runtime: python
@@ -20,3 +20,22 @@ services:
         value: sih2026-skyguard-shared-hmac-key-imd-defense-grade
       - key: ALLOWED_ORIGINS
         value: "*"
+
+  # 2. SkyGuard AI React + Vite Frontend Static Site
+  - type: web
+    name: skyguard-frontend
+    runtime: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/dist
+    plan: free
+    region: singapore
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: skyguard-backend
+          property: host

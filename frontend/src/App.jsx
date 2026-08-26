@@ -15,6 +15,11 @@ import AdminSettings from './components/AdminSettings';
 import { LanguageProvider, LanguageToggle } from './i18n';
 import { sounds } from './utils/audio';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+if (API_BASE_URL) {
+  axios.defaults.baseURL = API_BASE_URL;
+}
+
 export default function App() {
   const [stations, setStations] = useState([]);
   const [selectedStation, setSelectedStation] = useState(null);
@@ -114,11 +119,22 @@ export default function App() {
     let reconnectTimer = null;
 
     const connectWs = () => {
-      const hostname = window.location.hostname || 'localhost';
       const rawToken = localStorage.getItem('skyguard_token');
       const isValidToken = rawToken && rawToken !== 'undefined' && rawToken !== 'null' && rawToken.length > 20;
       const tokenParam = isValidToken ? `?token=${encodeURIComponent(rawToken)}` : '';
-      const wsUrl = `ws://${hostname}:8000/api/v1/ws/live-feed${tokenParam}`;
+      
+      let wsUrl;
+      const envApiUrl = import.meta.env.VITE_API_URL;
+      if (envApiUrl) {
+        const cleanWsUrl = envApiUrl.replace(/^http/, 'ws').replace(/\/+$/, '');
+        wsUrl = `${cleanWsUrl}/api/v1/ws/live-feed${tokenParam}`;
+      } else {
+        const hostname = window.location.hostname || 'localhost';
+        const isLocalVite = window.location.port === '5173';
+        const portStr = isLocalVite ? ':8000' : (window.location.port ? `:${window.location.port}` : '');
+        const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        wsUrl = `${wsProto}//${hostname}${portStr}/api/v1/ws/live-feed${tokenParam}`;
+      }
       
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
