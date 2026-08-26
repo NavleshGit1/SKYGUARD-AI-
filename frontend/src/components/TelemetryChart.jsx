@@ -44,8 +44,7 @@ const renderInjectedFaultDot = (props) => {
 };
 
 export default function TelemetryChart({ stations = [], selectedStation, onSelectStation, readings = [] }) {
-  // Default to TEMP for crystal-clear focus on Temperature + AE Imputation
-  const [selectedParam, setSelectedParam] = useState('TEMP'); // TEMP, PRES, RH, ALL
+  const [selectedParam, setSelectedParam] = useState('ALL'); // ALL, TEMP, PRES, RH
 
   // Format data for recharts
   const chartData = readings.map((r) => {
@@ -155,10 +154,10 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
           {/* Parameter Tabs */}
           <div className="flex items-center bg-slate-900/90 p-1 rounded-xl border border-slate-800 text-xs">
             {[
+              { id: 'ALL', label: 'All' },
               { id: 'TEMP', label: 'Temperature' },
               { id: 'PRES', label: 'Pressure' },
               { id: 'RH', label: 'Humidity' },
-              { id: 'ALL', label: 'All 3' },
             ].map(({ id, label }) => (
               <button
                 key={id}
