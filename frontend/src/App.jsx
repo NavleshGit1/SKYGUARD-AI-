@@ -271,6 +271,7 @@ export default function App() {
         {/* 1. Global Navigation Bar */}
         <Header
           activeTab={activeTab}
+          setActiveTab={setActiveTab}
           onTabChange={setActiveTab}
           user={user}
           onOpenLogin={() => setIsAuthModalOpen(true)}

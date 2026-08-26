@@ -27,6 +27,7 @@ export default function Header({
   onLogout,
   activeTab,
   setActiveTab,
+  onTabChange,
   toastEnabled,
   onToggleToast
 }) {
@@ -35,7 +36,12 @@ export default function Header({
 
   const handleTabClick = (tabId) => {
     sounds.playClick();
-    setActiveTab(tabId);
+    if (typeof onTabChange === 'function') {
+      onTabChange(tabId);
+    }
+    if (typeof setActiveTab === 'function') {
+      setActiveTab(tabId);
+    }
   };
 
   const handleSoundToggle = () => {
