@@ -1,0 +1,129 @@
+services:
+
+  # 1. TimescaleDB (PostgreSQL with Time-series Hypertables)
+  # VULN-14 FIX: Port bound to 127.0.0.1 only (dev). Remove ports block entirely for production.
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: skyguard_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}      # No fallback — must be set in .env
+      POSTGRES_DB: ${POSTGRES_DB:-skyguard_db}
+    ports:
+      - "127.0.0.1:5432:5432"                     # VULN-14 FIX: loopback-only, not 0.0.0.0
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+    networks:
+      - skyguard_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-skyguard_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 2. Redis Message Broker & Stream Buffer
+  # VULN-14 FIX: Port bound to 127.0.0.1 only (dev). Remove ports block entirely for production.
+  redis:
+    image: redis:7-alpine
+    container_name: skyguard_redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"                     # VULN-14 FIX: loopback-only, not 0.0.0.0
+    volumes:
+      - redis_data:/data
+    networks:
+      - skyguard_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 3. FastAPI Backend Application & ML Pipeline Worker
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: skyguard_backend
+    restart: unless-stopped
+    environment:
+      - POSTGRES_SERVER=timescaledb
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}     # VULN-01 FIX: no hardcoded default
+      - POSTGRES_DB=${POSTGRES_DB:-skyguard_db}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SECRET_KEY=${SECRET_KEY}                   # VULN-01 FIX: no hardcoded default
+      - TELEMETRY_HMAC_SECRET=${TELEMETRY_HMAC_SECRET}  # VULN-01 FIX: no hardcoded default
+    ports:
+      - "8000:8000"
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app/backend
+      - ./data:/app/data
+      - ./models:/app/models
+    networks:
+      - skyguard_net
+
+  # 4. Telemetry Stream Simulator (Replay Engine + Anomaly Injector)
+  simulator:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: skyguard_simulator
+    restart: unless-stopped
+    command: ["python", "-m", "simulator.run"]
+    environment:
+      - BACKEND_API_URL=http://backend:8000/api/v1/ingest/telemetry
+      - TELEMETRY_HMAC_SECRET=${TELEMETRY_HMAC_SECRET}  # VULN-01 FIX: no hardcoded default
+      - SIMULATOR_TICK_SECONDS=2
+    depends_on:
+      - backend
+    volumes:
+      - ./simulator:/app/simulator
+      - ./data:/app/data
+    networks:
+      - skyguard_net
+
+  # 5. React 18 + Vite Frontend Dashboard SPA
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: skyguard_frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    networks:
+      - skyguard_net
+
+  # 6. Nginx Gateway & Reverse Proxy (Port 80)
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: skyguard_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - skyguard_net
+
+volumes:
+  timescale_data:
+  redis_data:
+
+networks:
+  skyguard_net:
+    driver: bridge

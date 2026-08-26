@@ -1,0 +1,36 @@
+# Core Web & API
+fastapi>=0.110.0
+uvicorn[standard]>=0.28.0
+pydantic>=2.6.0
+pydantic-settings>=2.2.0
+python-multipart>=0.0.9
+slowapi>=0.1.9
+websockets>=12.0
+
+# Database & Cache
+sqlalchemy>=2.0.28
+psycopg2-binary>=2.9.9
+asyncpg>=0.29.0
+alembic>=1.13.1
+redis>=5.0.3
+
+# Data Science & Numerical
+numpy>=1.26.0
+pandas>=2.2.0
+scipy>=1.12.0
+statsmodels>=0.14.1
+meteostat>=1.6.5
+
+# Machine Learning & Deep Learning
+scikit-learn>=1.4.1
+xgboost>=2.0.3
+torch>=2.2.0
+shap>=0.45.0
+ruptures>=1.1.9
+
+# Security & Utilities
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+bcrypt>=4.1.2
+requests>=2.31.0
+python-dotenv>=1.0.1

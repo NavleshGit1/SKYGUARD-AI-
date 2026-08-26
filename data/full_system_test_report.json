@@ -1,0 +1,151 @@
+{
+  "total_tests": 21,
+  "passed": 21,
+  "failed": 0,
+  "sections": {
+    "INFRASTRUCTURE": [
+      {
+        "name": "FastAPI Core Gateway Health (/api/v1/health)",
+        "passed": true,
+        "status": "PASS",
+        "details": "Status: 200"
+      },
+      {
+        "name": "TimescaleDB Database Connection",
+        "passed": true,
+        "status": "PASS",
+        "details": "DB Status: HEALTHY"
+      },
+      {
+        "name": "Station Metadata Cache Connection",
+        "passed": true,
+        "status": "PASS",
+        "details": "Cached Stations: 5"
+      }
+    ],
+    "STATIONS": [
+      {
+        "name": "5 Surface AWS Stations Loaded",
+        "passed": true,
+        "status": "PASS",
+        "details": "Found 5 stations"
+      },
+      {
+        "name": "Indian Hub Stations Metadata Identity",
+        "passed": true,
+        "status": "PASS",
+        "details": "Matched: {'AWS-CHE-01', 'AWS-JAI-01', 'AWS-MUM-01', 'AWS-KOL-01', 'AWS-DEL-01'}"
+      },
+      {
+        "name": "Live Dynamic Health Score Attribute",
+        "passed": true,
+        "status": "PASS",
+        "details": "All stations contain dynamic scores"
+      }
+    ],
+    "SECURITY": [
+      {
+        "name": "Rejection of Unsigned Telemetry (Missing HMAC)",
+        "passed": true,
+        "status": "PASS",
+        "details": "HTTP 401"
+      },
+      {
+        "name": "Rejection of Tampered Signature Mismatch",
+        "passed": true,
+        "status": "PASS",
+        "details": "HTTP 401"
+      },
+      {
+        "name": "Cryptographic HMAC-SHA256 Ingestion Acceptance",
+        "passed": true,
+        "status": "PASS",
+        "details": "HTTP 200"
+      },
+      {
+        "name": "Sub-50ms Stream Ingestion Pipeline Latency",
+        "passed": true,
+        "status": "PASS",
+        "details": "Pipeline Latency: 28.25ms"
+      }
+    ],
+    "AI_ENSEMBLE": [
+      {
+        "name": "Physical Thermodynamic Bound Detector",
+        "passed": true,
+        "status": "PASS",
+        "details": "Score: 1.0"
+      },
+      {
+        "name": "Frozen Sensor / Zero-Variance Detector",
+        "passed": true,
+        "status": "PASS",
+        "details": "Evaluated variance"
+      },
+      {
+        "name": "Multivariate Isolation Forest & Autoencoder Spike",
+        "passed": true,
+        "status": "PASS",
+        "details": "Severity: 0.71"
+      }
+    ],
+    "IMPUTATION": [
+      {
+        "name": "Temperature Spike Self-Healing Recovery",
+        "passed": true,
+        "status": "PASS",
+        "details": "Imputed: 28.8\u00b0C (Ground Truth: 28.4\u00b0C, Error: 0.40\u00b0C)"
+      },
+      {
+        "name": "Imputation Status Flag",
+        "passed": true,
+        "status": "PASS",
+        "details": "Flag is_imputed=True"
+      }
+    ],
+    "HEALTH_ENGINE": [
+      {
+        "name": "August Monsoon Seasonal Factor Evaluation",
+        "passed": true,
+        "status": "PASS",
+        "details": "Health: 94.5% (HEALTHY)"
+      },
+      {
+        "name": "Degraded State Calibration Penalty Response",
+        "passed": true,
+        "status": "PASS",
+        "details": "Degraded Health: 32.8% (CRITICAL)"
+      }
+    ],
+    "INCIDENTS": [
+      {
+        "name": "Anomaly Event Triage Query (/anomalies)",
+        "passed": true,
+        "status": "PASS",
+        "details": "Retrieved 5 incidents"
+      }
+    ],
+    "AUDIT_TRAIL": [
+      {
+        "name": "SHA-256 Cryptographic Audit Chain Integrity",
+        "passed": true,
+        "status": "PASS",
+        "details": "Status: VERIFIED_VALID, Records: 15"
+      }
+    ],
+    "SIMULATOR": [
+      {
+        "name": "On-Demand Fault Injector Dispatch (/simulator/inject)",
+        "passed": true,
+        "status": "PASS",
+        "details": "Status: TRIGGERED"
+      },
+      {
+        "name": "Active Injections Registry (/simulator/active)",
+        "passed": true,
+        "status": "PASS",
+        "details": "Active Registry Status: HTTP 200"
+      }
+    ]
+  }
+}

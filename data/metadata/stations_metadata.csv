@@ -1,0 +1,6 @@
+station_id,name,latitude,longitude,altitude_m,district,state,climate_zone,install_year,last_calibration_date,wmo_id
+AWS-DEL-01,Delhi Safdarjung,28.6139,77.2090,216.0,Central Delhi,Delhi,Composite/Semi-Arid,2005,2026-01-15,42182
+AWS-MUM-01,Mumbai Santacruz,19.0760,72.8777,14.0,Mumbai Suburban,Maharashtra,Warm and Humid,2003,2026-02-10,43003
+AWS-CHE-01,Chennai Meenambakkam,13.0827,80.2707,16.0,Chennai,Tamil Nadu,Warm and Humid,2004,2026-01-20,43279
+AWS-KOL-01,Kolkata Alipore,22.5726,88.3639,6.0,Kolkata,West Bengal,Warm and Humid,2002,2026-02-01,42809
+AWS-JAI-01,Jaipur Sanganer,26.9124,75.7873,431.0,Jaipur,Rajasthan,Hot and Dry,2006,2026-01-05,42170

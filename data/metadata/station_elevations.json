@@ -1,0 +1,22 @@
+{
+  "AWS-DEL-01": {
+    "elevation_m": 216.0,
+    "source": "SRTM 30m / Survey of India"
+  },
+  "AWS-MUM-01": {
+    "elevation_m": 14.0,
+    "source": "SRTM 30m / Survey of India"
+  },
+  "AWS-CHE-01": {
+    "elevation_m": 16.0,
+    "source": "SRTM 30m / Survey of India"
+  },
+  "AWS-KOL-01": {
+    "elevation_m": 6.0,
+    "source": "SRTM 30m / Survey of India"
+  },
+  "AWS-JAI-01": {
+    "elevation_m": 431.0,
+    "source": "SRTM 30m / Survey of India"
+  }
+}

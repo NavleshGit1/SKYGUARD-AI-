@@ -1,0 +1,41 @@
+# Secrets — NEVER commit these to version control
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.env.local
+.env.*.local
+.venv
+
+# Data & Models (large binaries)
+data/raw/*.csv
+!data/raw/.gitkeep
+data/processed/*.csv
+!data/processed/.gitkeep
+models/*.pkl
+models/*.pt
+!models/.gitkeep
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+*.log
+
+# Docker
+.docker/

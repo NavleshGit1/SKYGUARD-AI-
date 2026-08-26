@@ -1,0 +1,225 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Tokyo Midnight Cyberpunk Palette */
+  --bg-app: #08090E;
+  --bg-surface: #0E111A;
+  --bg-surface-elevated: #141824;
+  --bg-card: rgba(14, 17, 26, 0.88);
+  
+  --border-subtle: rgba(0, 210, 255, 0.12);
+  --border-focus: rgba(0, 210, 255, 0.5);
+
+  --brand-primary: #00D2FF;
+  --brand-accent: #00D2FF;
+  --status-emerald: #00FFA3;
+  --status-amber: #F59E0B;
+  --status-rose: #FF0055;
+  
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-tertiary: #64748B;
+  
+  --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  line-height: 1.5;
+  background-image: 
+    radial-gradient(ellipse 70% 45% at 50% -10%, rgba(0, 210, 255, 0.09), transparent),
+    radial-gradient(ellipse 50% 40% at 85% 90%, rgba(157, 78, 221, 0.06), transparent);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ==========================================================================
+   TOKYO MIDNIGHT CYBERPUNK GLASS & SURFACE STYLING
+   ========================================================================== */
+.glass-panel {
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 210, 255, 0.14);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6), inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.glass-panel:hover {
+  border-color: rgba(0, 210, 255, 0.28);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.7), 0 0 15px rgba(0, 210, 255, 0.08);
+}
+
+.glass-badge {
+  background: rgba(0, 210, 255, 0.06);
+  border: 1px solid rgba(0, 210, 255, 0.22);
+  border-radius: 8px;
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* ==========================================================================
+   STATUS INDICATORS & LIGHTWEIGHT BEACONS
+   ========================================================================== */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+
+.pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  position: relative;
+  display: inline-block;
+}
+
+.pulse-dot::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: inherit;
+  opacity: 0.6;
+  animation: pulse-subtle 2.2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+@keyframes pulse-subtle {
+  0% { transform: scale(0.7); opacity: 0.8; }
+  60% { transform: scale(1.8); opacity: 0; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+/* ==========================================================================
+   BUTTON & INTERACTION UTILITIES
+   ========================================================================== */
+.btn-primary {
+  background: linear-gradient(135deg, #00D2FF 0%, #0095FF 100%);
+  color: #08090E;
+  font-weight: 700;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 16px rgba(0, 210, 255, 0.35);
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #33DCFF 0%, #1AA3FF 100%);
+  box-shadow: 0 0 24px rgba(0, 210, 255, 0.55);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  background: rgba(20, 24, 36, 0.8);
+  color: #E2E8F0;
+  font-weight: 600;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 210, 255, 0.15);
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: rgba(30, 36, 54, 0.9);
+  border-color: rgba(0, 210, 255, 0.35);
+  color: #00D2FF;
+}
+
+.cyber-btn-primary {
+  background: linear-gradient(135deg, #00D2FF 0%, #0088FF 100%);
+  color: #08090E;
+  font-weight: 700;
+  border-radius: 10px;
+  box-shadow: 0 0 18px rgba(0, 210, 255, 0.4);
+  transition: all 0.2s ease;
+}
+
+.cyber-btn-primary:hover {
+  box-shadow: 0 0 28px rgba(0, 210, 255, 0.65);
+  filter: brightness(1.1);
+}
+
+.cyber-btn-secondary {
+  background: rgba(14, 18, 28, 0.8);
+  color: #94A3B8;
+  border: 1px solid rgba(0, 210, 255, 0.15);
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.cyber-btn-secondary:hover {
+  color: #00D2FF;
+  border-color: rgba(0, 210, 255, 0.4);
+  background: rgba(20, 26, 40, 0.95);
+}
+
+/* ==========================================================================
+   TICKER MARQUEE
+   ========================================================================== */
+@keyframes marquee-scroll {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee-scroll 45s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* ==========================================================================
+   CUSTOM SCROLLBARS
+   ========================================================================== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(8, 9, 14, 0.8);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 210, 255, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 210, 255, 0.4);
+}
