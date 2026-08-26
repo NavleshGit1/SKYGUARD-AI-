@@ -39,3 +39,8 @@ frontend/.env.local
 
 # Docker
 .docker/
+
+# Internal Project Blueprints & Decks
+PROJECT_DOCUMENTATION.md
+SIH_PRESENTATION_DECK.md
+SkyGuard_AI_Master_Build_Blueprint.md
