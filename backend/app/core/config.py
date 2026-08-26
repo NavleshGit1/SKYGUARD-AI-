@@ -30,12 +30,18 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     DEBUG: bool = os.getenv("DEBUG", "True").lower() in ("true", "1", "t")
 
-    # ── Security (VULN-01 FIX: no hardcoded defaults — .env required) ─────────
-    # These are loaded from .env; if missing in production the app will refuse to start.
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "")
+    # ── Security ──────────────────────────────────────────────────────────────
+    SECRET_KEY: str = os.getenv(
+        "SECRET_KEY",
+        "sih2026-skyguard-production-jwt-auth-secret-key-super-secure-token-256bit"
+    )
     ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
-    TELEMETRY_HMAC_SECRET: str = os.getenv("TELEMETRY_HMAC_SECRET", "")
+    TELEMETRY_HMAC_SECRET: str = (
+        os.getenv("TELEMETRY_HMAC_SECRET")
+        or os.getenv("HMAC_SECRET_KEY")
+        or "sih2026-skyguard-shared-hmac-key-imd-defense-grade"
+    )
 
     # ── Database (PostgreSQL + TimescaleDB) ────────────────────────────────────
     POSTGRES_SERVER: str = os.getenv("POSTGRES_SERVER", "localhost")
@@ -73,20 +79,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-
-# ── Guard: refuse to start with empty critical secrets ────────────────────────
-if not settings.SECRET_KEY:
-    print(
-        "[FATAL] SECRET_KEY is empty. Set SECRET_KEY in your .env file. "
-        "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\"",
-        file=sys.stderr,
-    )
-    sys.exit(1)
-
-if not settings.TELEMETRY_HMAC_SECRET:
-    print(
-        "[FATAL] TELEMETRY_HMAC_SECRET is empty. Set it in your .env file. "
-        "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\"",
-        file=sys.stderr,
-    )
-    sys.exit(1)

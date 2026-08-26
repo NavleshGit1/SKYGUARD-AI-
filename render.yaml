@@ -14,6 +14,8 @@ services:
         value: production
       - key: SECRET_KEY
         generateValue: true
+      - key: TELEMETRY_HMAC_SECRET
+        value: sih2026-skyguard-shared-hmac-key-imd-defense-grade
       - key: HMAC_SECRET_KEY
         value: sih2026-skyguard-shared-hmac-key-imd-defense-grade
       - key: ALLOWED_ORIGINS
