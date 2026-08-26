@@ -21,14 +21,12 @@ services:
       - key: ALLOWED_ORIGINS
         value: "*"
 
-  # 2. SkyGuard AI React + Vite Frontend Static Site
+  # 2. SkyGuard AI React + Vite Frontend Static Site (Global Edge CDN)
   - type: web
     name: skyguard-frontend
     runtime: static
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: frontend/dist
-    plan: free
-    region: singapore
     routes:
       - type: rewrite
         source: /*
