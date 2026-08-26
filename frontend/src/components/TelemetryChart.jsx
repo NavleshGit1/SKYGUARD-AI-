@@ -44,7 +44,8 @@ const renderInjectedFaultDot = (props) => {
 };
 
 export default function TelemetryChart({ stations = [], selectedStation, onSelectStation, readings = [] }) {
-  const [selectedParam, setSelectedParam] = useState('ALL'); // ALL, TEMP, PRES, RH
+  // Default to TEMP for crystal-clear focus on Temperature + AE Imputation
+  const [selectedParam, setSelectedParam] = useState('TEMP'); // TEMP, PRES, RH, ALL
 
   // Format data for recharts
   const chartData = readings.map((r) => {
@@ -114,7 +115,7 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
   };
 
   return (
-    <div className="glass-panel p-5 flex flex-col h-[560px] relative">
+    <div className="glass-panel p-5 flex flex-col h-[580px] relative">
       {/* Header & Filter Controls */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-3 pb-2 border-b border-slate-800/80">
         <div>
@@ -154,15 +155,15 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
           {/* Parameter Tabs */}
           <div className="flex items-center bg-slate-900/90 p-1 rounded-xl border border-slate-800 text-xs">
             {[
-              { id: 'ALL', label: 'All Sensors' },
-              { id: 'TEMP', label: 'Temp' },
-              { id: 'PRES', label: 'Pres' },
+              { id: 'TEMP', label: 'Temperature' },
+              { id: 'PRES', label: 'Pressure' },
               { id: 'RH', label: 'Humidity' },
+              { id: 'ALL', label: 'All 3' },
             ].map(({ id, label }) => (
               <button
                 key={id}
                 onClick={() => handleParamChange(id)}
-                className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                className={`px-3 py-1 rounded-lg font-bold transition-all ${
                   selectedParam === id
                     ? 'bg-sky-600 text-white shadow-sm'
                     : 'text-slate-400 hover:text-white'
@@ -214,7 +215,7 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
             <ComposedChart data={chartData} margin={{ top: 10, right: 15, left: -15, bottom: 0 }}>
               <defs>
                 <linearGradient id="tempGlow" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#38BDF8" stopOpacity={0.25} />
+                  <stop offset="0%" stopColor="#38BDF8" stopOpacity={0.2} />
                   <stop offset="100%" stopColor="#38BDF8" stopOpacity={0.0} />
                 </linearGradient>
               </defs>
@@ -243,8 +244,8 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
               {/* Right Y Axis: Pressure */}
               {(selectedParam === 'ALL' || selectedParam === 'PRES') && (
                 <YAxis
-                  yAxisId="right-pres"
-                  orientation="right"
+                  yAxisId={selectedParam === 'PRES' ? 'left' : 'right-pres'}
+                  orientation={selectedParam === 'PRES' ? 'left' : 'right'}
                   stroke="#818CF8"
                   fontSize={11}
                   domain={['auto', 'auto']}
@@ -253,10 +254,10 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
               )}
 
               {/* Right Y Axis: RH */}
-              {selectedParam === 'RH' && (
+              {(selectedParam === 'ALL' || selectedParam === 'RH') && (
                 <YAxis
-                  yAxisId="right-rh"
-                  orientation="right"
+                  yAxisId={selectedParam === 'RH' ? 'left' : 'right-rh'}
+                  orientation={selectedParam === 'RH' ? 'left' : 'right'}
                   stroke="#2DD4BF"
                   fontSize={11}
                   domain={[0, 100]}
@@ -276,8 +277,8 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
               />
               <Legend verticalAlign="top" height={32} iconType="circle" />
 
-              {/* Temperature Area Glow (legendType="none" prevents extra duplicate label in legend) */}
-              {(selectedParam === 'ALL' || selectedParam === 'TEMP') && (
+              {/* Temperature Area Glow */}
+              {selectedParam === 'TEMP' && (
                 <Area
                   yAxisId="left"
                   type="monotone"
@@ -288,7 +289,7 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
                 />
               )}
 
-              {/* 1. Temperature Observed Curve (Cyan with Red Dot on Injected Fault) */}
+              {/* 1. Temperature Observed Curve */}
               {(selectedParam === 'ALL' || selectedParam === 'TEMP') && (
                 <Line
                   yAxisId="left"
@@ -302,7 +303,7 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
                 />
               )}
 
-              {/* 2. AE Imputed Temperature (Dashed Green Trace) */}
+              {/* 2. AE Imputed Temperature */}
               {(selectedParam === 'ALL' || selectedParam === 'TEMP') && (
                 <Line
                   yAxisId="left"
@@ -317,10 +318,10 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
                 />
               )}
 
-              {/* 3. Barometric Pressure Curve (Purple with Red Dot on Injected Fault) */}
+              {/* 3. Barometric Pressure Curve */}
               {(selectedParam === 'ALL' || selectedParam === 'PRES') && (
                 <Line
-                  yAxisId="right-pres"
+                  yAxisId={selectedParam === 'PRES' ? 'left' : 'right-pres'}
                   type="monotone"
                   dataKey="pressure"
                   name="Pressure (hPa)"
@@ -331,10 +332,10 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
                 />
               )}
 
-              {/* 4. AE Imputed Pressure (Dashed Green Trace when viewing Pressure) */}
+              {/* 4. AE Imputed Pressure */}
               {selectedParam === 'PRES' && (
                 <Line
-                  yAxisId="right-pres"
+                  yAxisId="left"
                   type="monotone"
                   dataKey="imputed_pressure"
                   name="AE Imputed Pres (hPa)"
@@ -346,10 +347,10 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
                 />
               )}
 
-              {/* 5. Humidity Curve (Teal with Red Dot on Injected Fault) */}
+              {/* 5. Humidity Curve */}
               {(selectedParam === 'ALL' || selectedParam === 'RH') && (
                 <Line
-                  yAxisId={selectedParam === 'RH' ? 'right-rh' : 'left'}
+                  yAxisId={selectedParam === 'RH' ? 'left' : (selectedParam === 'ALL' ? 'right-rh' : 'left')}
                   type="monotone"
                   dataKey="humidity"
                   name="Relative Humidity (%)"
@@ -360,10 +361,10 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
                 />
               )}
 
-              {/* 6. AE Imputed Humidity (Dashed Green Trace when viewing Humidity) */}
+              {/* 6. AE Imputed Humidity */}
               {selectedParam === 'RH' && (
                 <Line
-                  yAxisId="right-rh"
+                  yAxisId="left"
                   type="monotone"
                   dataKey="imputed_humidity"
                   name="AE Imputed Humidity (%)"

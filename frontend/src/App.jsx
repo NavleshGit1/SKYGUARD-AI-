@@ -289,32 +289,33 @@ export default function App() {
 
         {/* 3. Main Dashboard Workspace */}
         <main className="flex-1 max-w-[1720px] w-full mx-auto p-3 sm:p-5 lg:p-6 space-y-6">
-          {/* OVERVIEW TAB */}
+          {/* TAB 1: NETWORK OVERVIEW (KPIs + GIS Pan-India Radar Map) */}
           {activeTab === 'overview' && (
-            <div className="space-y-6">
-              {/* Top Row: KPI Cards */}
+            <div className="space-y-6 animate-fadeIn">
               <KPICards stations={stations} anomalies={anomalies} />
+              <LiveMap
+                stations={stations}
+                selectedStation={selectedStation}
+                onSelectStation={handleSelectStation}
+              />
+            </div>
+          )}
 
-              {/* Middle Row: GIS Radar Map + Telemetry Chart */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                <div className="lg:col-span-6 xl:col-span-5">
-                  <LiveMap
-                    stations={stations}
-                    selectedStation={selectedStation}
-                    onSelectStation={handleSelectStation}
-                  />
-                </div>
-                <div className="lg:col-span-6 xl:col-span-7">
-                  <TelemetryChart
-                    stations={stations}
-                    selectedStation={selectedStation}
-                    onSelectStation={handleSelectStation}
-                    readings={readings}
-                  />
-                </div>
-              </div>
+          {/* TAB 2: TELEMETRY STREAM & SELF-HEALING IMPUTATION */}
+          {activeTab === 'telemetry' && (
+            <div className="space-y-6 animate-fadeIn">
+              <TelemetryChart
+                stations={stations}
+                selectedStation={selectedStation}
+                onSelectStation={handleSelectStation}
+                readings={readings}
+              />
+            </div>
+          )}
 
-              {/* Bottom Row: Incident Feed */}
+          {/* TAB 3: INCIDENT CENTER & EXPLAINABLE AI (XAI) */}
+          {activeTab === 'alerts' && (
+            <div className="space-y-6 animate-fadeIn">
               <AlertFeed
                 anomalies={anomalies}
                 onResolveSuccess={fetchInitialData}
@@ -323,15 +324,9 @@ export default function App() {
             </div>
           )}
 
-          {/* TELEMETRY DEEP DIVE TAB */}
-          {activeTab === 'telemetry' && (
-            <div className="space-y-6">
-              <TelemetryChart
-                stations={stations}
-                selectedStation={selectedStation}
-                onSelectStation={handleSelectStation}
-                readings={readings}
-              />
+          {/* TAB 4: STATION HEALTH LEADERBOARD & MAINTENANCE */}
+          {activeTab === 'health' && (
+            <div className="space-y-6 animate-fadeIn">
               <SensorHealthLeaderboard
                 stations={stations}
                 selectedStation={selectedStation}
@@ -340,41 +335,31 @@ export default function App() {
             </div>
           )}
 
-          {/* ALERTS & INCIDENTS TAB */}
-          {activeTab === 'alerts' && (
-            <AlertFeed
-              anomalies={anomalies}
-              onResolveSuccess={fetchInitialData}
-              onSelectStation={handleSelectStation}
-            />
+          {/* TAB 5: AI MODEL BENCHMARKS */}
+          {activeTab === 'benchmark' && (
+            <div className="space-y-6 animate-fadeIn">
+              <ModelBenchmarkScreen />
+            </div>
           )}
 
-          {/* HEALTH LEADERBOARD TAB */}
-          {activeTab === 'health' && (
-            <SensorHealthLeaderboard
-              stations={stations}
-              selectedStation={selectedStation}
-              onSelectStation={handleSelectStation}
-            />
-          )}
-
-          {/* AI BENCHMARKS TAB */}
-          {activeTab === 'benchmark' && <ModelBenchmarkScreen />}
-
-          {/* FAULT INJECTION SIMULATOR TAB */}
+          {/* TAB 6: FAULT INJECTION WORKBENCH */}
           {activeTab === 'simulator' && (
-            <SimulatorPanel
-              stations={stations}
-              onInjectionSuccess={() => {
-                fetchInitialData();
-                sounds.playSuccessChime();
-              }}
-            />
+            <div className="space-y-6 animate-fadeIn">
+              <SimulatorPanel
+                stations={stations}
+                onInjectionSuccess={() => {
+                  fetchInitialData();
+                  sounds.playSuccessChime();
+                }}
+              />
+            </div>
           )}
 
-          {/* SYSTEM SETTINGS TAB */}
+          {/* TAB 7: CALIBRATION & SYSTEM SETTINGS */}
           {activeTab === 'admin' && (
-            <AdminSettings onRefreshData={fetchInitialData} />
+            <div className="space-y-6 animate-fadeIn">
+              <AdminSettings onRefreshData={fetchInitialData} />
+            </div>
           )}
         </main>
 
