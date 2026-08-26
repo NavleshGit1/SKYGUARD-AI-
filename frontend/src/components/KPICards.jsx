@@ -44,9 +44,9 @@ export default function KPICards({ stations = [], anomalies = [] }) {
       unit: 'ONLINE',
       subtext: 'Surface Observation Hubs',
       icon: Radio,
-      color: '#00D2FF',
+      color: '#38BDF8',
       badge: 'CONNECTED',
-      badgeColor: '#00D2FF',
+      badgeColor: '#38BDF8',
     },
     {
       id: 'health',
@@ -55,9 +55,9 @@ export default function KPICards({ stations = [], anomalies = [] }) {
       unit: 'INDEX',
       subtext: 'Mann-Kendall Monitored',
       icon: ShieldCheck,
-      color: '#00FFA3',
+      color: '#10B981',
       badge: avgHealth >= 85 ? 'OPTIMAL' : 'ATTENTION',
-      badgeColor: avgHealth >= 85 ? '#00FFA3' : '#F59E0B',
+      badgeColor: avgHealth >= 85 ? '#10B981' : '#F59E0B',
       progressBar: avgHealth,
     },
     {
@@ -67,9 +67,9 @@ export default function KPICards({ stations = [], anomalies = [] }) {
       unit: `/ ${totalStations}`,
       subtext: 'Health ≥ 85 (Zero Faults)',
       icon: Activity,
-      color: '#00FFA3',
+      color: '#34D399',
       badge: 'STABLE',
-      badgeColor: '#00FFA3',
+      badgeColor: '#34D399',
     },
     {
       id: 'degraded',
@@ -80,7 +80,7 @@ export default function KPICards({ stations = [], anomalies = [] }) {
       icon: AlertTriangle,
       color: degradedStations + criticalStations > 0 ? '#F59E0B' : '#94A3B8',
       badge: criticalStations > 0 ? 'CRITICAL' : 'NOMINAL',
-      badgeColor: criticalStations > 0 ? '#FF0055' : '#64748B',
+      badgeColor: criticalStations > 0 ? '#EF4444' : '#64748B',
     },
     {
       id: 'alerts',
@@ -89,9 +89,9 @@ export default function KPICards({ stations = [], anomalies = [] }) {
       unit: 'FLAGS',
       subtext: 'Real-Time Anomaly Stream',
       icon: Cpu,
-      color: activeAlerts > 0 ? '#FF0055' : '#00D2FF',
+      color: activeAlerts > 0 ? '#EF4444' : '#38BDF8',
       badge: activeAlerts > 0 ? 'INVESTIGATE' : 'SECURE',
-      badgeColor: activeAlerts > 0 ? '#FF0055' : '#00FFA3',
+      badgeColor: activeAlerts > 0 ? '#EF4444' : '#10B981',
     },
   ];
 

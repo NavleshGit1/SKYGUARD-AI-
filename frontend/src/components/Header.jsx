@@ -54,14 +54,14 @@ export default function Header({
   ];
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-[rgba(0,210,255,0.14)] bg-[#08090E]/95 backdrop-blur-md transition-all shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
+    <header className="sticky top-0 z-40 w-full border-b border-slate-800/80 bg-slate-950/95 backdrop-blur-md transition-all">
       <div className="max-w-[1720px] w-full mx-auto px-3 sm:px-6 py-2 flex items-center justify-between gap-3">
         {/* Left: Professional Brand Title */}
         <div
           onClick={() => handleTabClick('overview')}
           className="flex items-center gap-2.5 cursor-pointer group select-none flex-shrink-0"
         >
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#00D2FF] to-[#0088FF] flex items-center justify-center text-[#08090E] shadow-[0_0_14px_rgba(0,210,255,0.4)] flex-shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-sky-600 flex items-center justify-center text-white shadow-sm flex-shrink-0">
             <Cloud className="w-4 h-4" />
           </div>
 
@@ -70,7 +70,7 @@ export default function Header({
               <h1 className="text-sm font-bold tracking-tight text-white font-sans whitespace-nowrap">
                 SkyGuard AI
               </h1>
-              <span className="px-1.5 py-0.2 rounded bg-slate-900 border border-[#00D2FF]/30 text-[#00D2FF] text-[9px] font-mono font-bold">
+              <span className="px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 text-[9px] font-mono font-medium">
                 IMD QC
               </span>
             </div>
@@ -81,7 +81,7 @@ export default function Header({
         </div>
 
         {/* Center: Navigation Tabs */}
-        <nav className="hidden lg:flex items-center gap-0.5 bg-[#0E111A] p-1 rounded-xl border border-[rgba(0,210,255,0.15)] flex-shrink-0">
+        <nav className="hidden lg:flex items-center gap-0.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800 flex-shrink-0">
           {NAV_ITEMS.map(({ id, label, icon: Icon }) => {
             const isActive = activeTab === id;
             return (
@@ -90,7 +90,7 @@ export default function Header({
                 onClick={() => handleTabClick(id)}
                 className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap ${
                   isActive
-                    ? 'bg-[#00D2FF] text-[#08090E] font-bold shadow-[0_0_14px_rgba(0,210,255,0.45)]'
+                    ? 'bg-sky-600 text-white shadow-sm'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
                 }`}
               >
@@ -109,7 +109,7 @@ export default function Header({
             title={toastEnabled ? 'Toast popups are ON (Click to Mute)' : 'Toast popups are MUTED (Click to Enable)'}
             className={`p-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-all flex-shrink-0 ${
               toastEnabled
-                ? 'bg-[#00D2FF]/10 border-[#00D2FF]/30 text-[#00D2FF]'
+                ? 'bg-sky-500/10 border-sky-500/30 text-sky-400'
                 : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300'
             }`}
           >
@@ -126,7 +126,7 @@ export default function Header({
             className={`p-1.5 rounded-lg border text-xs transition-all flex-shrink-0 ${
               isMuted
                 ? 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300'
-                : 'bg-[#00FFA3]/10 border-[#00FFA3]/30 text-[#00FFA3]'
+                : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
             }`}
           >
             {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
@@ -136,13 +136,13 @@ export default function Header({
           <div
             className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[10px] font-mono font-medium flex-shrink-0 ${
               isWsConnected
-                ? 'bg-[#00FFA3]/10 border-[#00FFA3]/35 text-[#00FFA3]'
-                : 'bg-[#FF0055]/10 border-[#FF0055]/35 text-[#FF0055]'
+                ? 'bg-emerald-950/30 border-emerald-500/30 text-emerald-400'
+                : 'bg-rose-950/30 border-rose-500/30 text-rose-400'
             }`}
           >
             <span
               className="pulse-dot"
-              style={{ backgroundColor: isWsConnected ? '#00FFA3' : '#FF0055' }}
+              style={{ backgroundColor: isWsConnected ? '#10B981' : '#EF4444' }}
             />
             <span className="hidden sm:inline whitespace-nowrap">
               {isWsConnected ? 'LIVE FEED' : 'OFFLINE'}
@@ -156,7 +156,7 @@ export default function Header({
                 <p className="text-xs font-bold text-white leading-tight font-sans whitespace-nowrap">
                   {user.full_name || user.email.split('@')[0]}
                 </p>
-                <span className="text-[10px] text-[#00D2FF] uppercase font-mono block font-bold">
+                <span className="text-[10px] text-slate-400 uppercase font-mono block">
                   {user.role}
                 </span>
               </div>
@@ -166,7 +166,7 @@ export default function Header({
                   onLogout();
                 }}
                 title="Logout"
-                className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-[#FF0055] transition-all flex-shrink-0"
+                className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-rose-400 transition-all flex-shrink-0"
               >
                 <LogOut className="w-3.5 h-3.5" />
               </button>

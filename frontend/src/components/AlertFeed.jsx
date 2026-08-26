@@ -211,20 +211,20 @@ export default function AlertFeed({ anomalies = [], stations = [], onResolveAler
                 }}
                 className={`p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer flex items-center justify-between group ${
                   isSelected
-                    ? 'bg-[#121624] border-[#00D2FF] shadow-lg shadow-[#00D2FF]/20 scale-[1.01]'
+                    ? 'bg-slate-800/95 border-sky-500 shadow-lg shadow-sky-500/15 scale-[1.01]'
                     : isHigh
-                    ? 'bg-[#1E0812]/50 border-[#FF0055]/40 hover:border-[#FF0055]/80 hover:bg-[#2A0B1A]/60'
-                    : 'bg-[#0E111A]/80 border-[rgba(0,210,255,0.12)] hover:border-[rgba(0,210,255,0.3)] hover:bg-[#141824]'
+                    ? 'bg-rose-950/20 border-rose-500/30 hover:border-rose-400/70 hover:bg-rose-950/35'
+                    : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-850'
                 }`}
                 style={{
                   borderLeftWidth: '4px',
-                  borderLeftColor: isHigh ? '#FF0055' : alert.status === 'RESOLVED' ? '#00FFA3' : '#F59E0B'
+                  borderLeftColor: isHigh ? '#EF4444' : alert.status === 'RESOLVED' ? '#10B981' : '#F59E0B'
                 }}
               >
                 <div className="flex items-start gap-3 flex-1 min-w-0 pr-3">
                   <div
                     className={`p-2 rounded-xl mt-0.5 transition-transform group-hover:scale-110 flex-shrink-0 ${
-                      isHigh ? 'bg-[#FF0055]/20 text-[#FF0055]' : 'bg-amber-500/20 text-amber-400'
+                      isHigh ? 'bg-rose-500/20 text-rose-400' : 'bg-amber-500/20 text-amber-400'
                     }`}
                   >
                     {fault.icon}
@@ -232,7 +232,7 @@ export default function AlertFeed({ anomalies = [], stations = [], onResolveAler
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-xs text-white flex items-center gap-1">
-                        <MapPin className="w-3 h-3 text-[#00D2FF]" />
+                        <MapPin className="w-3 h-3 text-sky-400" />
                         {stInfo.name}
                         <span className="text-[10px] text-slate-400 font-mono">({alert.station_id})</span>
                       </span>
@@ -243,10 +243,10 @@ export default function AlertFeed({ anomalies = [], stations = [], onResolveAler
                       <span
                         className={`text-[9px] font-bold px-2 py-0.5 rounded-full font-mono uppercase ${
                           alert.status === 'ACTIVE'
-                            ? 'bg-[#FF0055]/20 text-[#FF0055] border border-[#FF0055]/30'
+                            ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
                             : alert.status === 'ACKNOWLEDGED'
                             ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                            : 'bg-[#00FFA3]/20 text-[#00FFA3] border border-[#00FFA3]/30'
+                            : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                         }`}
                       >
                         {alert.status}

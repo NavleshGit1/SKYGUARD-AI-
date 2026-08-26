@@ -17,20 +17,20 @@ import { sounds } from '../utils/audio';
 
 // Custom SVG Pulsing Radar Pin for Leaflet
 const createStatusPin = (healthScore = 100, isAnom = false) => {
-  let color = '#059669'; // Forest Emerald
-  let pulseColor = 'rgba(5, 150, 105, 0.35)';
+  let color = '#10B981'; // Green
+  let pulseColor = 'rgba(16, 185, 129, 0.4)';
   if (isAnom || healthScore < 60) {
-    color = '#DC2626'; // Signal Crimson
-    pulseColor = 'rgba(220, 38, 38, 0.45)';
+    color = '#EF4444'; // Red
+    pulseColor = 'rgba(239, 68, 68, 0.5)';
   } else if (healthScore < 85) {
-    color = '#D97706'; // Amber
-    pulseColor = 'rgba(217, 119, 6, 0.35)';
+    color = '#F59E0B'; // Amber
+    pulseColor = 'rgba(245, 158, 11, 0.4)';
   }
 
   const svgHtml = `
     <div style="position: relative; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
       <div style="position: absolute; width: 32px; height: 32px; border-radius: 50%; background-color: ${pulseColor}; animation: pulse-ring 2s infinite;"></div>
-      <div style="position: relative; width: 18px; height: 18px; border-radius: 50%; background: ${color}; border: 2.5px solid #FFFFFF; box-shadow: 0 0 12px ${color}, 0 2px 5px rgba(0,0,0,0.25);"></div>
+      <div style="position: relative; width: 18px; height: 18px; border-radius: 50%; background: ${color}; border: 3px solid #030712; box-shadow: 0 0 15px ${color}, 0 0 5px #ffffff;"></div>
     </div>
   `;
 

@@ -162,10 +162,11 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
               <button
                 key={id}
                 onClick={() => handleParamChange(id)}
-                className={`px-2.5 py-1 rounded-lg font-bold transition-all ${selectedParam === id
-                    ? 'bg-sky-500 text-slate-950 shadow-sm'
+                className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                  selectedParam === id
+                    ? 'bg-sky-600 text-white shadow-sm'
                     : 'text-slate-400 hover:text-white'
-                  }`}
+                }`}
               >
                 {label}
               </button>
@@ -176,7 +177,7 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
           <button
             onClick={exportCSV}
             title="Export CSV Telemetry"
-            className="cyber-btn-secondary px-2.5 py-1.5 text-xs flex items-center gap-1.5"
+            className="btn-secondary px-2.5 py-1.5 text-xs flex items-center gap-1.5"
           >
             <Download className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Export</span>
@@ -211,22 +212,21 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={chartData} margin={{ top: 10, right: 15, left: -15, bottom: 0 }}>
-              {/* Clean SVG Gradients */}
               <defs>
                 <linearGradient id="tempGlow" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#38BDF8" stopOpacity={0.2} />
+                  <stop offset="0%" stopColor="#38BDF8" stopOpacity={0.25} />
                   <stop offset="100%" stopColor="#38BDF8" stopOpacity={0.0} />
                 </linearGradient>
               </defs>
 
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
 
               <XAxis
                 dataKey="time"
                 stroke="#64748B"
                 fontSize={10}
                 tickLine={false}
-                axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
+                axisLine={{ stroke: 'rgba(255, 255, 255, 0.1)' }}
               />
 
               {/* Left Y Axis: Temp */}
@@ -236,7 +236,7 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
                   stroke="#38BDF8"
                   fontSize={11}
                   domain={['auto', 'auto']}
-                  tickFormatter={(v) => `${v}°C`}
+                  tickFormatter={(v) => `${Number(v).toFixed(1)}°C`}
                 />
               )}
 
@@ -248,7 +248,7 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
                   stroke="#818CF8"
                   fontSize={11}
                   domain={['auto', 'auto']}
-                  tickFormatter={(v) => `${v}hPa`}
+                  tickFormatter={(v) => `${Number(v).toFixed(1)}hPa`}
                 />
               )}
 
@@ -276,7 +276,7 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
               />
               <Legend verticalAlign="top" height={32} iconType="circle" />
 
-              {/* Temperature Area Glow */}
+              {/* Temperature Area Glow (legendType="none" prevents extra duplicate label in legend) */}
               {(selectedParam === 'ALL' || selectedParam === 'TEMP') && (
                 <Area
                   yAxisId="left"
@@ -284,6 +284,7 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
                   dataKey="temperature"
                   fill="url(#tempGlow)"
                   stroke="none"
+                  legendType="none"
                 />
               )}
 
