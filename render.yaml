@@ -1,0 +1,20 @@
+services:
+  # SkyGuard AI FastAPI Streaming Backend Service
+  - type: web
+    name: skyguard-backend
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    region: singapore
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: ENVIRONMENT
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: HMAC_SECRET_KEY
+        value: sih2026-skyguard-shared-hmac-key-imd-defense-grade
+      - key: ALLOWED_ORIGINS
+        value: "*"
