@@ -206,7 +206,7 @@ export default function LiveMap({ stations = [], selectedStation, onSelectStatio
             <div className="w-2.5 h-2.5 rounded-full bg-sky-400 animate-ping" />
             <div>
               <div className="text-[10px] text-slate-400 uppercase font-mono font-bold">Selected Station</div>
-              <div className="text-xs font-bold text-white font-mono">{selectedStation.station_id} — {selectedStation.name}</div>
+              <div className="text-xs font-bold text-white font-mono">{selectedStation?.station_id} — {selectedStation?.name}</div>
             </div>
           </div>
         )}
