@@ -112,6 +112,24 @@ app.add_middleware(
 # 3. Mount API v1 router
 app.include_router(api_v1_router, prefix=settings.API_V1_STR)
 
+@app.get("/", tags=["Root"], summary="SkyGuard AI Service Status")
+async def root_discovery():
+    """Welcome endpoint for root service inspection and endpoint discovery."""
+    return {
+        "success": True,
+        "status": "HEALTHY",
+        "service": settings.PROJECT_NAME,
+        "version": settings.VERSION,
+        "environment": settings.ENVIRONMENT,
+        "endpoints": {
+            "health": f"{settings.API_V1_STR}/health",
+            "stations": f"{settings.API_V1_STR}/stations",
+            "anomalies": f"{settings.API_V1_STR}/anomalies",
+            "websocket": f"{settings.API_V1_STR}/ws/live-feed"
+        },
+        "message": "SkyGuard AI Meteorological Telemetry Backend is active and operational."
+    }
+
 @app.get("/api/v1/health", tags=["Observability & Metrics"], summary="High-Precision System Health Check")
 async def health_check():
     """
