@@ -123,6 +123,75 @@ def seed_initial_telemetry_history():
                         is_imputed=False
                     )
                     db.add(db_reading)
+        
+        # Seed initial baseline anomaly incident if none exist
+        anom_count = db.query(AnomalyEvent).count()
+        if anom_count == 0:
+            logger.info("[Simulator] Seeding baseline demo anomaly incidents for Incident Center...")
+            demo_events = [
+                AnomalyEvent(
+                    event_id=f"EVT-AWS-DEL-01-{int(now.timestamp()) - 300}",
+                    station_id="AWS-DEL-01",
+                    timestamp=now - timedelta(minutes=5),
+                    severity_score=0.88,
+                    confidence_score=0.96,
+                    detector_scores={
+                        "rule_bounds": 0.0,
+                        "flatline_zero_variance": 0.0,
+                        "iforest_multivariate": 0.85,
+                        "autoencoder_reconstruction": 0.92,
+                        "drift_stl_cusum": 0.12,
+                        "spatial_idw_consistency": 0.78
+                    },
+                    root_cause="PHYSICAL_OUTLIER_SPIKE",
+                    explanation="Abrupt positive temperature excursion (+14.2°C in 5 minutes) detected. Reconstructed clean signal: 28.1°C.",
+                    shap_attributions={
+                        "temperature_c": 0.72,
+                        "dT_dt": 0.18,
+                        "dew_point_c": 0.06,
+                        "humidity_pct": 0.04
+                    },
+                    estimated_corrected_values={
+                        "temperature_c": 28.1,
+                        "pressure_hpa": 998.2,
+                        "humidity_pct": 64.8,
+                        "is_imputed": True
+                    },
+                    status="ACTIVE"
+                ),
+                AnomalyEvent(
+                    event_id=f"EVT-AWS-JAI-01-{int(now.timestamp()) - 900}",
+                    station_id="AWS-JAI-01",
+                    timestamp=now - timedelta(minutes=15),
+                    severity_score=0.74,
+                    confidence_score=0.91,
+                    detector_scores={
+                        "rule_bounds": 0.0,
+                        "flatline_zero_variance": 0.0,
+                        "iforest_multivariate": 0.68,
+                        "autoencoder_reconstruction": 0.75,
+                        "drift_stl_cusum": 0.82,
+                        "spatial_idw_consistency": 0.55
+                    },
+                    root_cause="CALIBRATION_DRIFT",
+                    explanation="Persistent monotonic upward calibration drift observed over 12 consecutive observations via CUSUM.",
+                    shap_attributions={
+                        "temperature_c": 0.61,
+                        "t_delta_zscore": 0.24,
+                        "humidity_pct": 0.15
+                    },
+                    estimated_corrected_values={
+                        "temperature_c": 33.4,
+                        "pressure_hpa": 985.1,
+                        "humidity_pct": 44.5,
+                        "is_imputed": True
+                    },
+                    status="ACTIVE"
+                )
+            ]
+            for evt in demo_events:
+                db.add(evt)
+
         db.commit()
     except Exception as e:
         db.rollback()

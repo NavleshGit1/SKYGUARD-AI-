@@ -16,15 +16,12 @@ ENV/
 .env.*.local
 .venv
 
-# Data & Models (large binaries)
+# Data (large raw archives)
 data/raw/*.csv
 !data/raw/.gitkeep
 data/processed/*.csv
 !data/processed/.gitkeep
 data/*.db
-models/*.pkl
-models/*.pt
-!models/.gitkeep
 
 # IDE / OS
 .vscode/
