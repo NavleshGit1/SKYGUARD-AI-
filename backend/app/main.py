@@ -65,15 +65,19 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"[Database] Startup connection note: {e}")
         
-    # Start Render 24/7 Keep-Alive Self-Pinger loop
+    # Start Render 24/7 Keep-Alive Self-Pinger & Autonomous Telemetry Stream
     import asyncio
     from backend.app.services.keep_alive import start_keep_alive_loop
+    from backend.app.services.background_simulator import start_background_simulator_loop
+    
     keep_alive_task = asyncio.create_task(start_keep_alive_loop())
+    simulator_task = asyncio.create_task(start_background_simulator_loop())
 
     yield
     
     # Shutdown
     keep_alive_task.cancel()
+    simulator_task.cancel()
     logger.info(f"[SkyGuard Backend] Graceful shutdown complete.")
 
 # VULN-02 FIX: Disable API docs in production — no surface exposure to attackers
