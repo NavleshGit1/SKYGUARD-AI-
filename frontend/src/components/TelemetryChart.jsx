@@ -322,8 +322,8 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
                   stroke="#2DD4BF"
                   fontSize={11}
                   hide={selectedParam === 'ALL'}
-                  domain={[0, 100]}
-                  tickFormatter={(v) => `${v}%`}
+                  domain={['auto', 'auto']}
+                  tickFormatter={(v) => `${Number(v).toFixed(0)}%`}
                 />
               )}
 

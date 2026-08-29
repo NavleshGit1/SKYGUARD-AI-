@@ -64,7 +64,7 @@ class StationAtmosphericState:
 
     def step(self, current_time: datetime) -> Dict[str, Any]:
         # Local Indian Standard Time (UTC +5:30)
-        ist_hour = (current_time.hour + 5.5 + (current_time.minute / 60.0)) % 24
+        ist_hour = (current_time.hour + 5.5 + (current_time.minute / 60.0) + (current_time.second / 3600.0)) % 24
         
         # Diurnal solar cycle (peak warmth at 14:30 IST, minimum at 05:30 IST)
         diurnal_phase = (ist_hour - 5.5) * (2.0 * math.pi / 24.0)
@@ -74,7 +74,7 @@ class StationAtmosphericState:
         target_hum = max(22.0, min(92.0, self.cfg["base_hum"] - (14.0 * math.sin(diurnal_phase - 1.2))))
 
         # Smooth Mean-Reverting Ornstein-Uhlenbeck Stochastic Process
-        alpha = 0.08
+        alpha = 0.25
         self.temp += alpha * (target_temp - self.temp) + random.gauss(0, 0.02)
         self.pres += alpha * (target_pres - self.pres) + random.gauss(0, 0.015)
         self.hum += alpha * (target_hum - self.hum) + random.gauss(0, 0.04)
@@ -114,7 +114,6 @@ def _apply_ui_injections(reading: Dict[str, Any]) -> Dict[str, Any]:
     if st_id not in ACTIVE_INJECTIONS:
         return reading
 
-
     inj = ACTIVE_INJECTIONS[st_id]
     inj_type = inj.get("type", "SPIKE").upper()
     param = inj.get("parameter", "temperature_c")
@@ -149,7 +148,7 @@ def _apply_ui_injections(reading: Dict[str, Any]) -> Dict[str, Any]:
     return reading
 
 def seed_initial_telemetry_history():
-    """Seeds 40 smooth continuous historical baseline telemetry points."""
+    """Seeds 40 smooth continuous historical baseline telemetry points at accelerated scale (1s = 3h, 8s = 1d)."""
     # Lazy import to avoid circular import at module level
     from backend.app.api.v1.ingest import feature_engine, detector_ensemble
 
@@ -163,7 +162,8 @@ def seed_initial_telemetry_history():
             for st_id, cfg in STATIONS_CONFIG.items():
                 temp_state = StationAtmosphericState(st_id, cfg)
                 for i in range(40, 0, -1):
-                    point_time = now - timedelta(minutes=i * 2)
+                    # Accelerated scale: 3 hours per step (8 steps = 1 day)
+                    point_time = now - timedelta(hours=i * 3.0)
                     reading = temp_state.step(point_time)
                     features = feature_engine.extract_features(reading)
                     detection = detector_ensemble.detect(features)
@@ -259,7 +259,7 @@ def seed_initial_telemetry_history():
         db.close()
 
 async def start_background_simulator_loop():
-    """Continuous async loop executing ML inference and broadcasting to WebSockets every 2s."""
+    """Continuous async loop executing ML inference and broadcasting to WebSockets at 1s = 3h, 8s = 1d scale."""
     # Lazy imports — avoids circular import at module load time
     from backend.app.api.v1.websocket import ws_manager
     from backend.app.api.v1.ingest import (
@@ -271,23 +271,28 @@ async def start_background_simulator_loop():
         alert_manager,
     )
 
-    logger.info("[Simulator] Initializing High-Fidelity Background Weather Stream...")
+    logger.info("[Simulator] Initializing High-Fidelity Background Weather Stream (1s = 3h / 8s = 1d scale)...")
 
     # 1. Ensure continuous baseline history
     await asyncio.to_thread(seed_initial_telemetry_history)
 
     station_keys = list(STATIONS_CONFIG.keys())
     step = 0
+    sim_base_time = datetime.now(timezone.utc)
+    loop_start_real = time.time()
 
     while True:
         try:
-            now = datetime.now(timezone.utc)
+            # Scale: 1 real second = 3 simulated hours (8 real seconds = 24 simulated hours = 1 full day)
+            elapsed_real_sec = time.time() - loop_start_real
+            simulated_now = sim_base_time + timedelta(hours=elapsed_real_sec * 3.0)
+
             # Cycle through all 5 stations
             st_id = station_keys[step % len(station_keys)]
             step += 1
 
             # 1. Generate continuous physics reading & apply UI injections
-            reading = _generate_synthetic_reading(st_id, now)
+            reading = _generate_synthetic_reading(st_id, simulated_now)
             reading = _apply_ui_injections(reading)
 
             # 2. Extract Features & Multi-Detector ML Inference
