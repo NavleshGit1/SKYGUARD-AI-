@@ -4,8 +4,13 @@
  */
 import axios from 'axios';
 
-// 1. Resolve Base API URL from Environment
-export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+// 1. Resolve Base API URL from Environment with fallback to live Render backend
+export const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL ||
+  (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')
+    ? 'https://skyguard-backend-y9nh.onrender.com'
+    : '')
+).replace(/\/$/, '');
 
 // 2. Configure Global Axios Instance
 if (API_BASE_URL) {
@@ -32,10 +37,6 @@ export async function apiFetch(endpoint, options = {}) {
 
 /**
  * Derives the optimal WebSocket live feed URL based on active deployment configuration.
- * Priority:
- * 1. Explicit VITE_WS_BASE_URL
- * 2. Transformed VITE_API_BASE_URL (http -> ws, https -> wss)
- * 3. Localhost fallback on port 8000
  */
 export function getWebSocketUrl() {
   if (import.meta.env.VITE_WS_BASE_URL) {
@@ -43,10 +44,14 @@ export function getWebSocketUrl() {
     return wsBase.includes('/api/v1/ws') ? wsBase : `${wsBase}/api/v1/ws/live-feed`;
   }
 
-  if (API_BASE_URL) {
-    const isSecure = API_BASE_URL.startsWith('https://');
+  const targetUrl = API_BASE_URL || (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')
+    ? 'https://skyguard-backend-y9nh.onrender.com'
+    : '');
+
+  if (targetUrl) {
+    const isSecure = targetUrl.startsWith('https://');
     const wsProto = isSecure ? 'wss:' : 'ws:';
-    const host = API_BASE_URL.replace(/^https?:\/\//, '').replace(/\/$/, '');
+    const host = targetUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
     return `${wsProto}//${host}/api/v1/ws/live-feed`;
   }
 
