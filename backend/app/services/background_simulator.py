@@ -155,26 +155,14 @@ def seed_initial_telemetry_history():
     db = SessionLocal()
     try:
         now = datetime.now(timezone.utc)
-        # Check if database has old minute-spaced readings or less than 30 readings
+        # Check if database has old chaotic readings or needs refresh
         total_readings = db.query(SensorReading).count()
-        first_r = db.query(SensorReading).order_by(SensorReading.timestamp.asc()).first()
-        last_r = db.query(SensorReading).order_by(SensorReading.timestamp.desc()).first()
-
-        needs_reseed = False
         if total_readings < 30:
-            needs_reseed = True
-        elif first_r and last_r and (last_r.timestamp - first_r.timestamp).total_seconds() < 7200:
-            # Old readings span less than 2 hours in DB -> reseed with 120-hour (40-step) accelerated baseline
-            needs_reseed = True
-            db.query(SensorReading).delete()
-            db.commit()
-
-        if needs_reseed:
-            logger.info("[Simulator] Initializing smooth physical baseline trajectory across all 5 AWS hubs (1s = 3h / 8s = 1d scale)...")
+            logger.info("[Simulator] Initializing smooth physical baseline trajectory across all 5 AWS hubs...")
             for st_id, cfg in STATIONS_CONFIG.items():
                 temp_state = StationAtmosphericState(st_id, cfg)
                 for i in range(40, 0, -1):
-                    # Accelerated scale: 3 hours per step (8 steps = 1 day, 40 steps = 5 full days)
+                    # Accelerated scale: 3 hours per step (8 steps = 1 day)
                     point_time = now - timedelta(hours=i * 3.0)
                     reading = temp_state.step(point_time)
                     features = feature_engine.extract_features(reading)
@@ -203,7 +191,7 @@ def seed_initial_telemetry_history():
                 AnomalyEvent(
                     event_id=f"EVT-AWS-DEL-01-{int(now.timestamp()) - 180}",
                     station_id="AWS-DEL-01",
-                    timestamp=now - timedelta(hours=3),
+                    timestamp=now - timedelta(minutes=3),
                     severity_score=0.92,
                     confidence_score=0.97,
                     detector_scores={
@@ -224,7 +212,7 @@ def seed_initial_telemetry_history():
                     },
                     estimated_corrected_values={
                         "temperature_c": 27.4,
-                        "pressure_hpa": 976.4,
+                        "pressure_hpa": 998.5,
                         "humidity_pct": 67.8,
                         "is_imputed": True
                     },
@@ -233,7 +221,7 @@ def seed_initial_telemetry_history():
                 AnomalyEvent(
                     event_id=f"EVT-AWS-JAI-01-{int(now.timestamp()) - 600}",
                     station_id="AWS-JAI-01",
-                    timestamp=now - timedelta(hours=6),
+                    timestamp=now - timedelta(minutes=10),
                     severity_score=0.78,
                     confidence_score=0.93,
                     detector_scores={
@@ -252,8 +240,8 @@ def seed_initial_telemetry_history():
                         "humidity_pct": 0.13
                     },
                     estimated_corrected_values={
-                        "temperature_c": 33.5,
-                        "pressure_hpa": 953.8,
+                        "temperature_c": 31.8,
+                        "pressure_hpa": 985.4,
                         "humidity_pct": 48.0,
                         "is_imputed": True
                     },
@@ -328,18 +316,18 @@ async def start_background_simulator_loop():
                     drift_score=detection["detector_scores"].get("drift_stl_cusum", 0.0),
                     last_calibration_date=db_station.last_calibration_date if db_station else "2026-01-01",
                     install_year=db_station.install_year if db_station else 2020,
-                    current_month=simulated_now.month
+                    current_month=now.month
                 )
 
                 if db_station:
                     db_station.health_score = health_update["health_score"]
                     db_station.health_status = health_update["status"]
-                    db_station.last_seen = simulated_now
+                    db_station.last_seen = now
 
-                # Persist reading with simulated timestamp
+                # Persist reading
                 db_reading = SensorReading(
                     station_id=st_id,
-                    timestamp=simulated_now,
+                    timestamp=now,
                     temperature_c=reading["temperature_c"],
                     pressure_hpa=reading["pressure_hpa"],
                     humidity_pct=reading["humidity_pct"],
@@ -356,11 +344,11 @@ async def start_background_simulator_loop():
 
                 # Persist anomaly if flagged
                 if is_anomaly:
-                    event_id = f"EVT-{st_id}-{int(simulated_now.timestamp())}"
+                    event_id = f"EVT-{st_id}-{int(now.timestamp())}"
                     db_event = AnomalyEvent(
                         event_id=event_id,
                         station_id=st_id,
-                        timestamp=simulated_now,
+                        timestamp=now,
                         severity_score=severity,
                         confidence_score=detection["confidence_score"],
                         detector_scores=detection["detector_scores"],
@@ -379,12 +367,13 @@ async def start_background_simulator_loop():
             finally:
                 db.close()
 
-            # 4. Broadcast live packet to all connected WebSockets with simulated timestamp
+            # 4. Broadcast live packet to all connected WebSockets
             # FIX: Restore top-level "imputed" key consumed by frontend App.jsx
+            # (data.imputed?.is_imputed / data.imputed?.temperature_c)
             broadcast_payload = {
                 "type": "TELEMETRY_INGESTED",
                 "station_id": st_id,
-                "timestamp": simulated_now.isoformat(),
+                "timestamp": now.isoformat(),
                 "reading": {
                     "temperature_c": reading["temperature_c"],
                     "pressure_hpa": reading["pressure_hpa"],
