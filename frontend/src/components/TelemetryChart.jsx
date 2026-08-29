@@ -43,6 +43,68 @@ const renderInjectedFaultDot = (props) => {
   return null;
 };
 
+const CustomTelemetryTooltip = ({ active, payload }) => {
+  if (!active || !payload || !payload.length) return null;
+  const data = payload[0]?.payload;
+  if (!data) return null;
+
+  return (
+    <div className="p-3 bg-slate-950/95 border border-sky-500/40 rounded-xl shadow-2xl text-xs font-mono min-w-[240px]">
+      <div className="flex items-center justify-between border-b border-slate-800 pb-1.5 mb-2">
+        <span className="text-slate-400 font-sans font-semibold">🕒 {data.time}</span>
+        {data.is_anomaly ? (
+          <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400 text-[10px] font-bold border border-rose-500/40 animate-pulse">
+            ⚠️ ANOMALY ({data.severity ? Math.round(data.severity * 100) : 85}%)
+          </span>
+        ) : (
+          <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold border border-emerald-500/40">
+            ✓ NOMINAL
+          </span>
+        )}
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <span className="text-sky-400 font-sans flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-sky-400" /> Temperature:
+          </span>
+          <span className="text-white font-bold">{data.temperature != null ? `${Number(data.temperature).toFixed(1)}°C` : '—'}</span>
+        </div>
+
+        {data.imputed_temperature != null && data.imputed_temperature !== data.temperature && (
+          <div className="flex items-center justify-between text-emerald-400 text-[11px]">
+            <span className="font-sans flex items-center gap-1.5">
+              <span className="w-2 h-0.5 bg-emerald-400 border-t border-dashed" /> AE Imputed:
+            </span>
+            <span className="font-bold">{Number(data.imputed_temperature).toFixed(1)}°C</span>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between">
+          <span className="text-indigo-400 font-sans flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-indigo-400" /> Pressure:
+          </span>
+          <span className="text-white font-bold">{data.pressure != null ? `${Number(data.pressure).toFixed(1)} hPa` : '—'}</span>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <span className="text-teal-400 font-sans flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-teal-400" /> Humidity:
+          </span>
+          <span className="text-white font-bold">{data.humidity != null ? `${Number(data.humidity).toFixed(1)}%` : '—'}</span>
+        </div>
+
+        {data.dew_point != null && (
+          <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800/80">
+            <span className="font-sans">Dew Point:</span>
+            <span>{Number(data.dew_point).toFixed(1)}°C</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export default function TelemetryChart({ stations = [], selectedStation, onSelectStation, readings = [] }) {
   const [selectedParam, setSelectedParam] = useState('ALL'); // ALL, TEMP, PRES, RH
 
@@ -259,21 +321,13 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
                   orientation={selectedParam === 'RH' ? 'left' : 'right'}
                   stroke="#2DD4BF"
                   fontSize={11}
+                  hide={selectedParam === 'ALL'}
                   domain={[0, 100]}
                   tickFormatter={(v) => `${v}%`}
                 />
               )}
 
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'rgba(3, 7, 18, 0.95)',
-                  borderColor: 'rgba(56, 189, 248, 0.4)',
-                  borderRadius: '12px',
-                  boxShadow: '0 15px 35px rgba(0,0,0,0.8), 0 0 15px rgba(56, 189, 248, 0.2)',
-                  fontSize: '12px',
-                  fontFamily: 'JetBrains Mono, monospace'
-                }}
-              />
+              <Tooltip content={<CustomTelemetryTooltip />} />
               <Legend verticalAlign="top" height={32} iconType="circle" />
 
               {/* Temperature Area Glow */}
