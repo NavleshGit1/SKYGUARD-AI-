@@ -321,7 +321,6 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
                   orientation={selectedParam === 'RH' ? 'left' : 'right'}
                   stroke="#2DD4BF"
                   fontSize={11}
-                  hide={selectedParam === 'ALL'}
                   domain={['auto', 'auto']}
                   tickFormatter={(v) => `${Number(v).toFixed(0)}%`}
                 />
@@ -403,7 +402,7 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
               {/* 5. Humidity Curve */}
               {(selectedParam === 'ALL' || selectedParam === 'RH') && (
                 <Line
-                  yAxisId={selectedParam === 'RH' ? 'left' : (selectedParam === 'ALL' ? 'right-rh' : 'left')}
+                  yAxisId={selectedParam === 'RH' ? 'left' : 'right-rh'}
                   type="monotone"
                   dataKey="humidity"
                   name="Relative Humidity (%)"
