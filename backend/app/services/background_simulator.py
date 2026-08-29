@@ -13,7 +13,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, Any
 
 from backend.app.core.database import SessionLocal
-from backend.app.core.websocket import ws_manager
+from backend.app.api.v1.websocket import ws_manager
 from backend.app.models.station import WeatherStation
 from backend.app.models.reading import SensorReading
 from backend.app.models.anomaly import AnomalyEvent
