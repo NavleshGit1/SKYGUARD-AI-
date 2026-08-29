@@ -52,9 +52,11 @@ class MeteorologicalFeatureEngine:
     def calculate_dew_point(temp_c: float, rh_pct: float) -> Tuple[float, bool]:
         """
         Calculates thermodynamic dew point temperature (°C).
-        Enforces physical invariant: T_dew <= T_ambient + 0.1°C
+        Enforces physical invariant: T_dew <= T_ambient + 0.1°C and RH <= 100%
         Returns: (dew_point_c, is_invariant_violated)
         """
+        raw_violation = (rh_pct > 100.05) or (rh_pct < -0.05)
+        
         # Clamp relative humidity to valid physical domain (0.01% - 100%)
         rh_clamped = max(0.01, min(100.0, rh_pct))
         
@@ -66,7 +68,10 @@ class MeteorologicalFeatureEngine:
         dew_point = (b * gamma) / (a - gamma)
         
         # Physical constraint: Dew point cannot exceed ambient dry-bulb temperature
-        invariant_violated = (dew_point > temp_c + 0.1)
+        invariant_violated = raw_violation or (dew_point > temp_c + 0.1)
+        
+        if not invariant_violated:
+            dew_point = min(dew_point, temp_c)
         
         return round(dew_point, 2), invariant_violated
 
@@ -196,7 +201,8 @@ class MeteorologicalFeatureEngine:
         })
 
         t_zscore = round((t_val - normals["t_mean"]) / max(0.1, normals["t_std"]), 2)
-        p_zscore = round((p_val - normals["p_mean"]) / max(0.1, normals["p_std"]), 2)
+        # Pressure normals are MSLP; compare sea_level_pressure against normals["p_mean"]
+        p_zscore = round((sea_level_pressure - normals["p_mean"]) / max(0.1, normals["p_std"]), 2)
         rh_zscore = round((rh_val - normals["rh_mean"]) / max(0.1, normals["rh_std"]), 2)
 
         # 5. Missingness Tracker

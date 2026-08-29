@@ -19,6 +19,7 @@ _STATION_ID_PATTERN = r'^[A-Za-z0-9][A-Za-z0-9\-_]{1,28}[A-Za-z0-9]$'
 router = APIRouter(tags=["Stations & Telemetry Analytics"])
 
 from backend.app.services.background_simulator import _generate_synthetic_reading, STATIONS_CONFIG
+from backend.app.services.feature_eng import MeteorologicalFeatureEngine
 
 @router.get("/stations", response_model=List[Dict[str, Any]], summary="List All Weather Stations with Latest Telemetry")
 def get_all_stations(db: Session = Depends(get_db)):
@@ -46,12 +47,14 @@ def get_all_stations(db: Session = Depends(get_db)):
             # High-fidelity baseline fallback (ensures zero blank values on initial cold boot)
             st_key = st.station_id if st.station_id in STATIONS_CONFIG else "AWS-DEL-01"
             syn = _generate_synthetic_reading(st_key, now)
+            dew, _ = MeteorologicalFeatureEngine.calculate_dew_point(syn["temperature_c"], syn["humidity_pct"])
+            slp = MeteorologicalFeatureEngine.calculate_sea_level_pressure(syn["pressure_hpa"], syn["temperature_c"], st.altitude_m)
             latest_dict = {
                 "temperature_c": syn["temperature_c"],
                 "pressure_hpa": syn["pressure_hpa"],
                 "humidity_pct": syn["humidity_pct"],
-                "dew_point_c": round(syn["temperature_c"] - ((100 - syn["humidity_pct"]) / 5), 1),
-                "sea_level_pressure_hpa": round(syn["pressure_hpa"] + (st.altitude_m / 8.3), 1),
+                "dew_point_c": dew,
+                "sea_level_pressure_hpa": slp,
                 "is_anomaly": False,
                 "timestamp": now.isoformat()
             }
@@ -138,14 +141,16 @@ def get_station_details(
         for i in range(25, 0, -1):
             pt = now - timedelta(minutes=i * 3)
             syn = _generate_synthetic_reading(st_key, pt)
+            dew, _ = MeteorologicalFeatureEngine.calculate_dew_point(syn["temperature_c"], syn["humidity_pct"])
+            slp = MeteorologicalFeatureEngine.calculate_sea_level_pressure(syn["pressure_hpa"], syn["temperature_c"], station.altitude_m)
             recent_list.append({
                 "id": i,
                 "timestamp": pt.isoformat(),
                 "temperature_c": syn["temperature_c"],
                 "pressure_hpa": syn["pressure_hpa"],
                 "humidity_pct": syn["humidity_pct"],
-                "dew_point_c": round(syn["temperature_c"] - ((100 - syn["humidity_pct"]) / 5), 1),
-                "sea_level_pressure_hpa": round(syn["pressure_hpa"] + (station.altitude_m / 8.3), 1),
+                "dew_point_c": dew,
+                "sea_level_pressure_hpa": slp,
                 "is_anomaly": False,
                 "severity_score": 0.0,
                 "is_imputed": False,

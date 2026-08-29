@@ -20,7 +20,7 @@ export default function App() {
   const [stations, setStations] = useState([]);
   const [selectedStation, setSelectedStation] = useState(null);
   const selectedStationRef = useRef(null);
-  
+
   const [readings, setReadings] = useState([]);
   const [anomalies, setAnomalies] = useState([]);
   // overview | telemetry | alerts | health | benchmark | simulator | admin
@@ -35,7 +35,7 @@ export default function App() {
   // localStorage is readable by JavaScript — susceptible to XSS exfiltration.
   // Recommended: POST /auth/login sets Set-Cookie: session=<token>; HttpOnly; Secure; SameSite=Strict
   const [token, setToken] = useState(() => localStorage.getItem('skyguard_token'));
-  
+
   // Real-Time WebSocket state
   const [isWsConnected, setIsWsConnected] = useState(false);
   const wsRef = useRef(null);
@@ -92,8 +92,8 @@ export default function App() {
     fetchInitialData();
     // Safety poll every 8s
     const pollInterval = setInterval(() => {
-      axios.get('/api/v1/stations').then(res => setStations(res.data)).catch(() => {});
-      axios.get('/api/v1/anomalies?limit=50').then(res => setAnomalies(res.data)).catch(() => {});
+      axios.get('/api/v1/stations').then(res => setStations(res.data)).catch(() => { });
+      axios.get('/api/v1/anomalies?limit=50').then(res => setAnomalies(res.data)).catch(() => { });
       if (selectedStationRef.current) {
         fetchStationTelemetry(selectedStationRef.current.station_id);
       }
@@ -120,7 +120,7 @@ export default function App() {
       const tokenParam = isValidToken ? `?token=${encodeURIComponent(rawToken)}` : '';
       const baseWsUrl = getWebSocketUrl();
       const wsUrl = baseWsUrl.includes('?') ? `${baseWsUrl}&token=${encodeURIComponent(rawToken)}` : `${baseWsUrl}${tokenParam}`;
-      
+
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
@@ -133,7 +133,7 @@ export default function App() {
           const data = JSON.parse(event.data);
           if (data.type === 'TELEMETRY_INGESTED') {
             const currentSelectedId = selectedStationRef.current?.station_id;
-            
+
             // 1. Update Telemetry curve if this matches currently viewed station
             if (data.station_id === currentSelectedId) {
               setReadings((prev) => [
@@ -161,17 +161,17 @@ export default function App() {
               prev.map((s) =>
                 s.station_id === data.station_id
                   ? {
-                      ...s,
-                      health_score: data.health_score,
-                      health_status: data.health_status,
-                      latest_reading: {
-                        temperature_c: data.reading.temperature_c,
-                        pressure_hpa: data.reading.pressure_hpa,
-                        humidity_pct: data.reading.humidity_pct,
-                        is_anomaly: data.is_anomaly,
-                        timestamp: data.timestamp
-                      }
+                    ...s,
+                    health_score: data.health_score,
+                    health_status: data.health_status,
+                    latest_reading: {
+                      temperature_c: data.reading.temperature_c,
+                      pressure_hpa: data.reading.pressure_hpa,
+                      humidity_pct: data.reading.humidity_pct,
+                      is_anomaly: data.is_anomaly,
+                      timestamp: data.timestamp
                     }
+                  }
                   : s
               )
             );
