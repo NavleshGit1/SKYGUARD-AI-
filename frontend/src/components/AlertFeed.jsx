@@ -29,7 +29,7 @@ const STATION_MAP = {
   'AWS-JAI-01': { name: 'Jaipur Sanganer', state: 'Rajasthan' }
 };
 
-export default function AlertFeed({ anomalies = [], stations = [], onResolveAlert }) {
+export default function AlertFeed({ anomalies = [], stations = [], onResolveAlert, onResolveSuccess }) {
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [filterStatus, setFilterStatus] = useState('ACTIVE');
   const [filterStation, setFilterStation] = useState('ALL');
@@ -47,13 +47,20 @@ export default function AlertFeed({ anomalies = [], stations = [], onResolveAler
     if (!selectedAlert) return;
     setIsSubmitting(true);
     try {
+      const token = localStorage.getItem('skyguard_token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       await axios.patch(`/api/v1/anomalies/${selectedAlert.event_id}/resolve`, {
         status: newStatus,
         resolved_by: 'Operator (Web UI)',
         resolution_notes: resolveNotes || `Incident ${newStatus.toLowerCase()} via Incident Center.`
-      });
+      }, { headers });
       sounds.playSuccessChime();
-      onResolveAlert(selectedAlert.event_id, newStatus);
+      if (typeof onResolveAlert === 'function') {
+        onResolveAlert(selectedAlert.event_id, newStatus);
+      }
+      if (typeof onResolveSuccess === 'function') {
+        onResolveSuccess();
+      }
       setSelectedAlert((prev) => ({ ...prev, status: newStatus }));
       setResolveNotes('');
     } catch (err) {

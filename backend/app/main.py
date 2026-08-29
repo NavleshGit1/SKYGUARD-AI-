@@ -36,11 +36,19 @@ async def lifespan(app: FastAPI):
     logger.info(f"Starting {settings.PROJECT_NAME} v{settings.VERSION} [{settings.ENVIRONMENT}]")
     try:
         Base.metadata.create_all(bind=engine)
-        logger.info("[Database] TimescaleDB schema tables verified & connected.")
+        logger.info("[Database] Schema tables verified & connected.")
         
-        # Preload station cache
+        # Preload station cache & auto-seed if empty
         db = SessionLocal()
         try:
+            st_count = db.query(WeatherStation).count()
+            if st_count == 0:
+                logger.info("[Database] Empty database detected. Auto-seeding weather stations...")
+                from scripts.init_db import initialize_database
+                from scripts.seed_model_registry import seed_registry
+                initialize_database()
+                seed_registry()
+
             stations = db.query(WeatherStation).all()
             for st in stations:
                 station_cache.set(st.station_id, {
@@ -57,9 +65,15 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"[Database] Startup connection note: {e}")
         
+    # Start Render 24/7 Keep-Alive Self-Pinger loop
+    import asyncio
+    from backend.app.services.keep_alive import start_keep_alive_loop
+    keep_alive_task = asyncio.create_task(start_keep_alive_loop())
+
     yield
     
     # Shutdown
+    keep_alive_task.cancel()
     logger.info(f"[SkyGuard Backend] Graceful shutdown complete.")
 
 # VULN-02 FIX: Disable API docs in production — no surface exposure to attackers

@@ -19,6 +19,7 @@ import {
   Award
 } from 'lucide-react';
 import { sounds } from '../utils/audio';
+import { apiUrl } from '../utils/api';
 
 const MK_BADGE = {
   DECREASING:        { label: 'Declining Drift',   icon: TrendingDown, color: '#EF4444', bg: 'rgba(239,68,68,0.15)', border: 'rgba(239,68,68,0.3)' },
@@ -278,7 +279,7 @@ export default function SensorHealthLeaderboard({ token }) {
 
   const fetchStations = useCallback(async () => {
     try {
-      const resp = await fetch('/api/v1/stations', {
+      const resp = await fetch(apiUrl('/api/v1/stations'), {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
       if (resp.ok) {

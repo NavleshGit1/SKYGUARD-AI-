@@ -14,6 +14,7 @@ import ModelBenchmarkScreen from './components/ModelBenchmarkScreen';
 import AdminSettings from './components/AdminSettings';
 import { LanguageProvider, LanguageToggle } from './i18n';
 import { sounds } from './utils/audio';
+import { getWebSocketUrl } from './utils/api';
 
 export default function App() {
   const [stations, setStations] = useState([]);
@@ -114,11 +115,11 @@ export default function App() {
     let reconnectTimer = null;
 
     const connectWs = () => {
-      const hostname = window.location.hostname || 'localhost';
       const rawToken = localStorage.getItem('skyguard_token');
       const isValidToken = rawToken && rawToken !== 'undefined' && rawToken !== 'null' && rawToken.length > 20;
       const tokenParam = isValidToken ? `?token=${encodeURIComponent(rawToken)}` : '';
-      const wsUrl = `ws://${hostname}:8000/api/v1/ws/live-feed${tokenParam}`;
+      const baseWsUrl = getWebSocketUrl();
+      const wsUrl = baseWsUrl.includes('?') ? `${baseWsUrl}&token=${encodeURIComponent(rawToken)}` : `${baseWsUrl}${tokenParam}`;
       
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
@@ -319,6 +320,8 @@ export default function App() {
             <div className="space-y-6 animate-fadeIn">
               <AlertFeed
                 anomalies={anomalies}
+                stations={stations}
+                onResolveAlert={handleResolveAlert}
                 onResolveSuccess={fetchInitialData}
                 onSelectStation={handleSelectStation}
               />
@@ -359,7 +362,7 @@ export default function App() {
           {/* TAB 7: CALIBRATION & SYSTEM SETTINGS */}
           {activeTab === 'admin' && (
             <div className="space-y-6 animate-fadeIn">
-              <AdminSettings onRefreshData={fetchInitialData} />
+              <AdminSettings token={token} onRefreshData={fetchInitialData} />
             </div>
           )}
         </main>
@@ -369,6 +372,7 @@ export default function App() {
           <ToastContainer
             toasts={toasts}
             onDismiss={handleDismissToast}
+            onInspect={handleInspectToast}
             onSelectAlert={handleInspectToast}
           />
         )}

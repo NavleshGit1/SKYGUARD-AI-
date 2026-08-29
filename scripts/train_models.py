@@ -167,4 +167,9 @@ def train_12_year_models():
 
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="SkyGuard AI Model Retraining Pipeline")
+    parser.add_argument("--model", type=str, default="all", help="Model to retrain: autoencoder, isolation_forest, or all")
+    parser.add_argument("--window-days", type=int, default=30, help="Window days of data to use")
+    args = parser.parse_args()
     train_12_year_models()

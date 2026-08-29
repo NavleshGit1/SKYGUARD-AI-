@@ -1,0 +1,63 @@
+services:
+  # 1. SkyGuard AI FastAPI Backend Web Service
+  - type: web
+    name: skyguard-backend
+    runtime: python
+    plan: starter
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: TELEMETRY_HMAC_SECRET
+        generateValue: true
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 120
+      - key: DATABASE_URL
+        fromDatabase:
+          name: skyguard-timescale
+          property: connectionString
+      - key: FRONTEND_URL
+        sync: false # Set this to your Vercel deployment URL (e.g., https://skyguard.vercel.app)
+
+  # 2. Telemetry Background Simulator Worker (Optional Replay Feed)
+  - type: worker
+    name: skyguard-simulator
+    runtime: python
+    plan: starter
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m simulator.run
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: BACKEND_API_URL
+        fromService:
+          type: web
+          name: skyguard-backend
+          property: host
+      - key: TELEMETRY_HMAC_SECRET
+        fromService:
+          type: web
+          name: skyguard-backend
+          envVarKey: TELEMETRY_HMAC_SECRET
+      - key: SIMULATOR_TICK_SECONDS
+        value: 2
+
+databases:
+  # Managed PostgreSQL / Timescale database on Render
+  - name: skyguard-timescale
+    databaseName: skyguard_db
+    user: skyguard_user
+    plan: starter
+    region: oregon

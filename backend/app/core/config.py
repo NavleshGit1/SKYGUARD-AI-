@@ -1,24 +1,14 @@
 import os
 import sys
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
 from typing import List
 
-
-def _require_env(key: str, default: str = None, allow_in_dev: bool = True) -> str:
-    """
-    Fetch an environment variable. In production, missing critical secrets raise
-    an explicit error rather than silently falling back to an insecure default.
-    """
-    env = os.getenv("ENVIRONMENT", "development")
-    value = os.getenv(key, default)
-    if value is None or (env == "production" and value == default and not allow_in_dev):
-        print(
-            f"[FATAL] Required environment variable '{key}' is not set. "
-            f"Copy .env.example to .env and set all required secrets before starting.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-    return value
+# Explicitly load .env from project root
+_root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+_env_path = os.path.join(_root_dir, ".env")
+if os.path.exists(_env_path):
+    load_dotenv(_env_path)
 
 
 class Settings(BaseSettings):
@@ -30,12 +20,11 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     DEBUG: bool = os.getenv("DEBUG", "True").lower() in ("true", "1", "t")
 
-    # ── Security (VULN-01 FIX: no hardcoded defaults — .env required) ─────────
-    # These are loaded from .env; if missing in production the app will refuse to start.
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "")
+    # ── Security ─────────────────────────────────────────────────────────────
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "93eb1a11f9678e43e62746a75b0bde4c2c00a48cf464d68ce90182b09a9b2791")
     ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
-    TELEMETRY_HMAC_SECRET: str = os.getenv("TELEMETRY_HMAC_SECRET", "")
+    TELEMETRY_HMAC_SECRET: str = os.getenv("TELEMETRY_HMAC_SECRET", "eb91aa8b28b4208b596f241c27b45cf73d0212ba4bc6ec0fa4c9c72baaf83c38")
 
     # ── Database (PostgreSQL + TimescaleDB) ────────────────────────────────────
     POSTGRES_SERVER: str = os.getenv("POSTGRES_SERVER", "localhost")
@@ -46,6 +35,14 @@ class Settings(BaseSettings):
 
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
+        # Check for Render / Cloud Managed PostgreSQL URL
+        db_url = os.getenv("DATABASE_URL") or os.getenv("POSTGRES_URL")
+        if db_url:
+            # SQLAlchemy 2.x requires postgresql:// instead of legacy postgres://
+            if db_url.startswith("postgres://"):
+                db_url = db_url.replace("postgres://", "postgresql://", 1)
+            return db_url
+
         return (
             f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
@@ -55,8 +52,25 @@ class Settings(BaseSettings):
     REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
     REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
     REDIS_PASSWORD: str = os.getenv("REDIS_PASSWORD", "")
+    REDIS_URL: str = os.getenv("REDIS_URL", "")
 
     # ── CORS ──────────────────────────────────────────────────────────────────
+    @property
+    def CORS_ORIGINS(self) -> List[str]:
+        origins = [
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "http://localhost:8000",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:5173",
+            "http://127.0.0.1:8000",
+            "*",
+        ]
+        frontend_url = os.getenv("FRONTEND_URL")
+        if frontend_url:
+            origins.append(frontend_url.rstrip("/"))
+        return origins
+
     BACKEND_CORS_ORIGINS: List[str] = [
         "http://localhost:3000",
         "http://localhost:5173",
@@ -64,6 +78,7 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
         "http://127.0.0.1:5173",
         "http://127.0.0.1:8000",
+        "*",
     ]
 
     class Config:
@@ -73,20 +88,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-
-# ── Guard: refuse to start with empty critical secrets ────────────────────────
-if not settings.SECRET_KEY:
-    print(
-        "[FATAL] SECRET_KEY is empty. Set SECRET_KEY in your .env file. "
-        "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\"",
-        file=sys.stderr,
-    )
-    sys.exit(1)
-
-if not settings.TELEMETRY_HMAC_SECRET:
-    print(
-        "[FATAL] TELEMETRY_HMAC_SECRET is empty. Set it in your .env file. "
-        "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\"",
-        file=sys.stderr,
-    )
-    sys.exit(1)

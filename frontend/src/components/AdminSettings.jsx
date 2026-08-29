@@ -15,6 +15,7 @@ import {
   Lock
 } from 'lucide-react';
 import { sounds } from '../utils/audio';
+import { apiUrl } from '../utils/api';
 
 function SliderRow({ label, description, value, min, max, step = 0.01, unit = '', onChange }) {
   const pct = ((value - min) / (max - min)) * 100;
@@ -59,7 +60,7 @@ function AuditTrailViewer({ token }) {
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
-      const resp = await fetch('/api/v1/audit?limit=100&skip=0', {
+      const resp = await fetch(apiUrl('/api/v1/audit?limit=100&skip=0'), {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
       if (resp.ok) {
@@ -76,7 +77,7 @@ function AuditTrailViewer({ token }) {
   const verifyIntegrity = async () => {
     sounds.playClick();
     try {
-      const resp = await fetch('/api/v1/audit/verify', {
+      const resp = await fetch(apiUrl('/api/v1/audit/verify'), {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
       const data = await resp.json();
@@ -199,7 +200,7 @@ function AuditTrailViewer({ token }) {
   );
 }
 
-export default function AdminSettings({ token }) {
+export default function AdminSettings({ token: propToken, onRefreshData }) {
   const [weights, setWeights] = useState({
     w_rule: 0.10,
     w_flatline: 0.10,
@@ -222,24 +223,21 @@ export default function AdminSettings({ token }) {
   const handleSave = async () => {
     sounds.playClick();
     setSaving(true);
+    const activeToken = propToken || localStorage.getItem('skyguard_token');
     try {
-      const resp = await fetch('/api/v1/admin/thresholds', {
+      const resp = await fetch(apiUrl('/api/v1/admin/thresholds'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
+          ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {})
         },
         body: JSON.stringify({
-          weights: {
-            rule: weights.w_rule,
-            flatline: weights.w_flatline,
-            iforest: weights.w_iforest,
-            autoencoder: weights.w_autoencoder,
-            drift: weights.w_drift,
-            spatial: weights.w_spatial
-          },
-          threshold: weights.threshold_severity,
-          cooldown_sec: weights.cooldown_seconds
+          fusion_threshold: weights.threshold_severity,
+          iforest_weight: weights.w_iforest,
+          autoencoder_weight: weights.w_autoencoder,
+          drift_weight: weights.w_drift,
+          spatial_weight: weights.w_spatial,
+          alert_cooldown_seconds: weights.cooldown_seconds
         })
       });
       if (resp.ok) {
@@ -257,14 +255,15 @@ export default function AdminSettings({ token }) {
   const handleRetrain = async (modelType) => {
     sounds.playClick();
     setRetrainingModel(modelType);
+    const activeToken = propToken || localStorage.getItem('skyguard_token');
     try {
-      const resp = await fetch('/api/v1/admin/retrain', {
+      const resp = await fetch(apiUrl('/api/v1/admin/retrain'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
+          ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {})
         },
-        body: JSON.stringify({ model_type: modelType })
+        body: JSON.stringify({ models: [modelType.toLowerCase()] })
       });
       if (resp.ok) {
         sounds.playSuccessChime();

@@ -1,0 +1,36 @@
+name: SkyGuard Render 24/7 Keep-Alive Pinger
+
+on:
+  schedule:
+    # Run every 10 minutes to reset Render's 15-minute inactivity timer
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping-render-backend:
+    name: Ping Render Health Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Send HTTP Keep-Alive Ping
+        run: |
+          BACKEND_URL="${{ secrets.RENDER_BACKEND_URL }}"
+          if [ -z "$BACKEND_URL" ]; then
+            BACKEND_URL="https://skyguard-backend.onrender.com"
+          fi
+          
+          HEALTH_URL="${BACKEND_URL%/}/api/v1/health"
+          echo "======================================================="
+          echo "  SkyGuard AI Anti-Sleep Keep-Alive Ping"
+          echo "  Target URL: $HEALTH_URL"
+          echo "  Timestamp: $(date -u)"
+          echo "======================================================="
+          
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -m 45 "$HEALTH_URL" || echo "000")
+          echo "HTTP Response Status Code: $HTTP_STATUS"
+          
+          if [ "$HTTP_STATUS" -eq 200 ]; then
+            echo " [SUCCESS] Render Backend is awake and active. Inactivity timer reset."
+          else
+            echo " [INFO] Ping dispatched (Status: $HTTP_STATUS). Render will wake if sleeping."
+          fi

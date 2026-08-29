@@ -22,7 +22,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
 
       const res = await axios.post('/api/v1/auth/login', formData);
       localStorage.setItem('skyguard_token', res.data.access_token);
-      onLoginSuccess(res.data.user);
+      onLoginSuccess(res.data.user, res.data.access_token);
       onClose();
     } catch (err) {
       setError(err.response?.data?.detail || 'Invalid email or password.');
