@@ -156,12 +156,186 @@ def _seed_db_if_empty():
         db.close()
 
 
+async def _run_embedded_simulator():
+    """
+    In-process async background task that streams simulated AWS telemetry
+    Essential for Render Free Tier (single-process web container hosting)
+    """
+    logger.info("[Embedded Simulator] Starting in-process telemetry streaming worker...")
+    await asyncio.sleep(2)  # Short initial grace period
+    
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    data_path = os.path.join(base_dir, "data", "raw", "historical_aws_training.csv")
+    
+    engine_sim = SimulatorEngine(data_path=data_path, secret_key=settings.TELEMETRY_HMAC_SECRET)
+    stations = ["AWS-DEL-01", "AWS-MUM-01", "AWS-CHE-01", "AWS-KOL-01", "AWS-JAI-01"]
+    station_idx = 0
+    
+    from backend.app.services.feature_eng import MeteorologicalFeatureEngine
+    from backend.app.services.detectors import HybridDetectorEnsemble
+    from backend.app.services.xai import ExplainabilityEngine
+    from backend.app.services.imputer import ValueImputer
+    from backend.app.services.health_score import SensorHealthEngine
+    from backend.app.services.alert_manager import alert_manager
+    from backend.app.api.v1.websocket import ws_manager
+    
+    feature_engine = MeteorologicalFeatureEngine("data/metadata/climate_normals.csv")
+    detector_ensemble = HybridDetectorEnsemble("models")
+    imputer = ValueImputer("models")
+    health_engine = SensorHealthEngine()
+
+    while True:
+        try:
+            # 1. Check on-demand UI injections
+            active_target = None
+            if ACTIVE_INJECTIONS:
+                for st_id, inj in list(ACTIVE_INJECTIONS.items()):
+                    engine_sim.trigger_anomaly(
+                        anomaly_type=inj["type"],
+                        parameter=inj["parameter"],
+                        duration_ticks=inj["duration"],
+                        magnitude=inj["magnitude"],
+                        station_id=st_id
+                    )
+                    active_target = st_id
+                    del ACTIVE_INJECTIONS[st_id]
+                    break
+
+            target_station = active_target if active_target else stations[station_idx % len(stations)]
+            station_idx += 1
+
+            reading_pkg = engine_sim.get_next_reading(target_station=target_station)
+            if reading_pkg:
+                payload = reading_pkg["payload"]
+                st_id = payload["station_id"]
+                
+                db = SessionLocal()
+                try:
+                    station_meta = station_cache.get(st_id)
+                    if not station_meta:
+                        st = db.query(WeatherStation).filter(WeatherStation.station_id == st_id).first()
+                        if st:
+                            station_meta = {
+                                "station_id": st.station_id,
+                                "name": st.name,
+                                "altitude_m": st.altitude_m,
+                                "latitude": st.latitude,
+                                "longitude": st.longitude,
+                                "api_secret_key": st.api_secret_key
+                            }
+                            station_cache.set(st_id, station_meta)
+
+                    if station_meta:
+                        # 2. Physics feature extraction
+                        reading_with_meta = payload.copy()
+                        reading_with_meta["altitude_m"] = station_meta.get("altitude_m", 0.0)
+                        feat_dict = feature_engine.extract_features(reading_with_meta)
+                        
+                        # 3. ML Ensemble evaluation
+                        detection = detector_ensemble.detect(feat_dict)
+                        is_anomaly = detection["is_anomaly"]
+                        severity = detection["severity_score"]
+                        attributions = detection.get("shap_attributions", {})
+                        
+                        # 4. Imputation
+                        imputed = imputer.impute_corrected_values(feat_dict, is_anomaly, attributions)
+                        
+                        # 5. Health score update
+                        st_obj = db.query(WeatherStation).filter(WeatherStation.station_id == st_id).first()
+                        last_cal = st_obj.last_calibration_date if st_obj else "2026-01-01"
+                        inst_yr = st_obj.install_year if st_obj else 2020
+                        ts = datetime.fromisoformat(payload["timestamp"].replace("Z", "+00:00"))
+                        
+                        health_update = health_engine.update_health(
+                            station_id=st_id,
+                            is_anomaly=is_anomaly,
+                            severity_score=severity,
+                            drift_score=detection["detector_scores"].get("drift_stl_cusum", 0.0),
+                            last_calibration_date=last_cal,
+                            install_year=inst_yr,
+                            current_month=ts.month
+                        )
+                        
+                        # 6. Save reading to DB
+                        reading_rec = SensorReading(
+                            station_id=st_id,
+                            timestamp=ts,
+                            temperature_c=payload["temperature_c"],
+                            pressure_hpa=payload["pressure_hpa"],
+                            humidity_pct=payload["humidity_pct"],
+                            dew_point_c=feat_dict["physics_features"]["dew_point_c"],
+                            sea_level_pressure_hpa=feat_dict["physics_features"]["sea_level_pressure_hpa"],
+                            is_anomaly=is_anomaly,
+                            severity_score=severity,
+                            is_imputed=imputed.get("is_imputed", False),
+                            imputed_temperature_c=imputed.get("temperature_c"),
+                            imputed_pressure_hpa=imputed.get("pressure_hpa"),
+                            imputed_humidity_pct=imputed.get("humidity_pct")
+                        )
+                        db.add(reading_rec)
+
+                        # Update station health in DB
+                        if st_obj:
+                            st_obj.health_score = health_update["health_score"]
+                            st_obj.health_status = health_update["status"]
+                            st_obj.last_seen = ts
+
+                        # 7. Record anomaly if detected
+                        if is_anomaly:
+                            explanation = ExplainabilityEngine.generate_explanation(feat_dict, detection)
+                            anom_event = AnomalyEvent(
+                                event_id=f"evt-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}-{secrets.token_hex(3)}",
+                                station_id=st_id,
+                                timestamp=ts,
+                                severity_score=severity,
+                                confidence_score=detection.get("confidence_score", 0.95),
+                                detector_scores=detection.get("detector_scores", {}),
+                                root_cause=detection.get("root_cause", "MULTIVARIATE_PHYSICAL_DEVIATION"),
+                                explanation=explanation,
+                                shap_attributions=attributions,
+                                estimated_corrected_values=imputed,
+                                status="ACTIVE"
+                            )
+                            db.add(anom_event)
+
+                        db.commit()
+
+                        # 8. Broadcast over WebSocket to active frontend dashboards
+                        await ws_manager.broadcast({
+                            "type": "TELEMETRY_INGESTED",
+                            "station_id": st_id,
+                            "timestamp": payload["timestamp"],
+                            "reading": {
+                                "temperature_c": payload["temperature_c"],
+                                "pressure_hpa": payload["pressure_hpa"],
+                                "humidity_pct": payload["humidity_pct"],
+                                "dew_point_c": feat_dict["physics_features"]["dew_point_c"],
+                                "sea_level_pressure_hpa": feat_dict["physics_features"]["sea_level_pressure_hpa"]
+                            },
+                            "is_anomaly": is_anomaly,
+                            "severity_score": severity,
+                            "health_score": health_update["health_score"],
+                            "health_status": health_update["status"],
+                            "root_cause": detection.get("root_cause"),
+                            "imputed": imputed
+                        })
+                except Exception as e:
+                    db.rollback()
+                    logger.warning(f"[Embedded Simulator] Ingestion tick note: {e}")
+                finally:
+                    db.close()
+
+        except Exception as e:
+            logger.warning(f"[Embedded Simulator] Loop error: {e}")
+
+        await asyncio.sleep(settings.SIMULATOR_TICK_SECONDS)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Ensure DB tables exist, auto-seed and prime station cache
     logger.info(f"Starting {settings.PROJECT_NAME} v{settings.VERSION} [{settings.ENVIRONMENT}]")
-    simulator_task = None
-    keep_alive_task = None
+    sim_task = None
     try:
         Base.metadata.create_all(bind=engine)
         logger.info("[Database] Schema tables verified & connected.")
@@ -192,24 +366,27 @@ async def lifespan(app: FastAPI):
         finally:
             db.close()
 
-        # Start Render Autonomous High-Fidelity Physics Telemetry Stream & Keep-Alive Pinger
-        from backend.app.services.background_simulator import start_background_simulator_loop
-        from backend.app.services.keep_alive import start_keep_alive_loop
-        
-        simulator_task = asyncio.create_task(start_background_simulator_loop())
-        keep_alive_task = asyncio.create_task(start_keep_alive_loop())
-        logger.info("[Lifespan] Autonomous Telemetry Streamer & Keep-Alive tasks launched.")
+        # Launch embedded background simulator if enabled
+        if settings.ENABLE_EMBEDDED_SIMULATOR:
+            sim_task = asyncio.create_task(_run_embedded_simulator())
+            logger.info("[Lifespan] Embedded Telemetry Streamer background task launched.")
 
     except Exception as e:
         logger.warning(f"[Database] Startup connection note: {e}")
+        
+    # Start Render 24/7 Keep-Alive Self-Pinger & Autonomous Telemetry Stream
+    import asyncio
+    from backend.app.services.keep_alive import start_keep_alive_loop
+    from backend.app.services.background_simulator import start_background_simulator_loop
+    
+    keep_alive_task = asyncio.create_task(start_keep_alive_loop())
+    simulator_task = asyncio.create_task(start_background_simulator_loop())
 
     yield
     
     # Shutdown
-    if simulator_task:
-        simulator_task.cancel()
-    if keep_alive_task:
-        keep_alive_task.cancel()
+    if sim_task:
+        sim_task.cancel()
     logger.info(f"[SkyGuard Backend] Graceful shutdown complete.")
 
 
@@ -240,15 +417,8 @@ app.add_middleware(RequestTracingMiddleware)
 # Dynamic CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:8000",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:8000",
-    ] + [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()],
-    allow_origin_regex=r"^https?:\/\/.*",
+    allow_origins=settings.BACKEND_CORS_ORIGINS,
+    allow_origin_regex=r"^https:\/\/.*\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

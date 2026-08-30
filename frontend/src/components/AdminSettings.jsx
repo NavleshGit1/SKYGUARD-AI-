@@ -15,7 +15,7 @@ import {
   Lock
 } from 'lucide-react';
 import { sounds } from '../utils/audio';
-import api from '../utils/api';
+import { apiUrl } from '../utils/api';
 
 function SliderRow({ label, description, value, min, max, step = 0.01, unit = '', onChange }) {
   const pct = ((value - min) / (max - min)) * 100;
@@ -60,24 +60,31 @@ function AuditTrailViewer({ token }) {
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
-      const resp = await api.get('/api/v1/audit?limit=100&skip=0');
-      const data = resp.data;
-      setLogs(Array.isArray(data) ? data : data?.logs ?? []);
+      const resp = await fetch(apiUrl('/api/v1/audit?limit=100&skip=0'), {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        setLogs(Array.isArray(data) ? data : data.logs ?? []);
+      }
     } catch (e) {
-      console.warn('Could not fetch audit logs:', e);
+      console.error(e);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [token]);
 
   const verifyIntegrity = async () => {
     sounds.playClick();
     try {
-      const resp = await api.get('/api/v1/audit/verify');
+      const resp = await fetch(apiUrl('/api/v1/audit/verify'), {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      const data = await resp.json();
       sounds.playSuccessChime();
-      setVerified(resp.data);
+      setVerified(data);
     } catch (e) {
-      setVerified({ status: 'ERROR', message: String(e?.response?.data?.detail || e.message || e) });
+      setVerified({ status: 'ERROR', message: String(e) });
     }
   };
 
@@ -193,8 +200,7 @@ function AuditTrailViewer({ token }) {
   );
 }
 
-export default function AdminSettings({ token: propToken, onRefreshData, onOpenAuth }) {
-  const activeToken = propToken || localStorage.getItem('skyguard_token');
+export default function AdminSettings({ token: propToken, onRefreshData }) {
   const [weights, setWeights] = useState({
     w_rule: 0.10,
     w_flatline: 0.10,
@@ -210,29 +216,6 @@ export default function AdminSettings({ token: propToken, onRefreshData, onOpenA
   const [toastMsg, setToastMsg] = useState(null);
   const [retrainingModel, setRetrainingModel] = useState(null);
 
-  // Load server thresholds on mount if available
-  useEffect(() => {
-    const loadThresholds = async () => {
-      try {
-        const resp = await api.get('/api/v1/admin/thresholds');
-        const data = resp.data;
-        const t = data?.thresholds || {};
-        setWeights((prev) => ({
-          ...prev,
-          threshold_severity: t.fusion_threshold ?? prev.threshold_severity,
-          w_iforest: t.iforest_weight ?? prev.w_iforest,
-          w_autoencoder: t.autoencoder_weight ?? prev.w_autoencoder,
-          w_drift: t.drift_weight ?? prev.w_drift,
-          w_spatial: t.spatial_weight ?? prev.w_spatial,
-          cooldown_seconds: t.alert_cooldown_seconds ?? prev.cooldown_seconds,
-        }));
-      } catch (e) {
-        console.warn('Could not fetch server thresholds (unauthenticated or offline):', e);
-      }
-    };
-    loadThresholds();
-  }, [activeToken]);
-
   const handleWeightChange = (key, val) => {
     setWeights((prev) => ({ ...prev, [key]: val }));
   };
@@ -240,47 +223,30 @@ export default function AdminSettings({ token: propToken, onRefreshData, onOpenA
   const handleSave = async () => {
     sounds.playClick();
     setSaving(true);
-    setToastMsg(null);
-    const tokenToUse = propToken || localStorage.getItem('skyguard_token');
-
-    if (!tokenToUse) {
-      setToastMsg({
-        type: 'error',
-        text: 'Admin Authentication Required: Please log in using the Login button (admin@skyguard.ai) to calibrate weights.'
-      });
-      setSaving(false);
-      return;
-    }
-
+    const activeToken = propToken || localStorage.getItem('skyguard_token');
     try {
-      const resp = await api.post('/api/v1/admin/thresholds', {
-        fusion_threshold: weights.threshold_severity,
-        iforest_weight: weights.w_iforest,
-        autoencoder_weight: weights.w_autoencoder,
-        drift_weight: weights.w_drift,
-        spatial_weight: weights.w_spatial,
-        alert_cooldown_seconds: weights.cooldown_seconds
+      const resp = await fetch(apiUrl('/api/v1/admin/thresholds'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {})
+        },
+        body: JSON.stringify({
+          fusion_threshold: weights.threshold_severity,
+          iforest_weight: weights.w_iforest,
+          autoencoder_weight: weights.w_autoencoder,
+          drift_weight: weights.w_drift,
+          spatial_weight: weights.w_spatial,
+          alert_cooldown_seconds: weights.cooldown_seconds
+        })
       });
-
-      sounds.playSuccessChime();
-      setToastMsg({
-        type: 'success',
-        text: 'Runtime detector weights & anomaly thresholds calibrated successfully.'
-      });
-      if (onRefreshData) onRefreshData();
-    } catch (e) {
-      const status = e?.response?.status;
-      if (status === 401 || status === 403) {
-        setToastMsg({
-          type: 'error',
-          text: 'Session expired or insufficient privileges. Please log in as Admin (admin@skyguard.ai).'
-        });
-      } else {
-        setToastMsg({
-          type: 'error',
-          text: `Calibration update failed: ${e?.response?.data?.detail || e.message || 'Unknown error'}`
-        });
+      if (resp.ok) {
+        sounds.playSuccessChime();
+        setToastMsg('Runtime thresholds & detector weights calibrated successfully.');
+        setTimeout(() => setToastMsg(null), 4000);
       }
+    } catch (e) {
+      console.error(e);
     } finally {
       setSaving(false);
     }
@@ -289,31 +255,23 @@ export default function AdminSettings({ token: propToken, onRefreshData, onOpenA
   const handleRetrain = async (modelType) => {
     sounds.playClick();
     setRetrainingModel(modelType);
-    const tokenToUse = propToken || localStorage.getItem('skyguard_token');
-
-    if (!tokenToUse) {
-      setToastMsg({
-        type: 'error',
-        text: 'Admin Authentication Required to trigger asynchronous model retraining.'
-      });
-      setRetrainingModel(null);
-      return;
-    }
-
+    const activeToken = propToken || localStorage.getItem('skyguard_token');
     try {
-      const resp = await api.post('/api/v1/admin/retrain', {
-        models: [modelType.toLowerCase()]
+      const resp = await fetch(apiUrl('/api/v1/admin/retrain'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {})
+        },
+        body: JSON.stringify({ models: [modelType.toLowerCase()] })
       });
-      sounds.playSuccessChime();
-      setToastMsg({
-        type: 'success',
-        text: `Retraining job scheduled for ${modelType}. Running in background.`
-      });
+      if (resp.ok) {
+        sounds.playSuccessChime();
+        setToastMsg(`Retraining job scheduled for ${modelType}. Running in background.`);
+        setTimeout(() => setToastMsg(null), 5000);
+      }
     } catch (e) {
-      setToastMsg({
-        type: 'error',
-        text: `Retraining error: ${e?.response?.data?.detail || e.message || 'Request failed'}`
-      });
+      console.error(e);
     } finally {
       setRetrainingModel(null);
     }
@@ -321,43 +279,11 @@ export default function AdminSettings({ token: propToken, onRefreshData, onOpenA
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      {/* Toast Notice */}
+      {/* Toast */}
       {toastMsg && (
-        <div className={`p-4 rounded-2xl border text-xs font-mono shadow-xl flex items-center justify-between animate-fadeIn ${
-          toastMsg.type === 'error'
-            ? 'bg-rose-950/90 border-rose-500/40 text-rose-300'
-            : 'bg-emerald-950/90 border-emerald-500/40 text-emerald-300'
-        }`}>
-          <span>{toastMsg.type === 'error' ? '⚠️' : '✅'} {toastMsg.text}</span>
-          <div className="flex items-center gap-2">
-            {toastMsg.type === 'error' && onOpenAuth && (
-              <button
-                onClick={onOpenAuth}
-                className="px-2 py-1 rounded-lg bg-rose-500/30 text-white font-bold hover:bg-rose-500 transition-all"
-              >
-                Log In
-              </button>
-            )}
-            <button onClick={() => setToastMsg(null)} className="text-slate-400 hover:text-white font-bold ml-2">✕</button>
-          </div>
-        </div>
-      )}
-
-      {/* Auth Banner if unauthenticated */}
-      {!activeToken && (
-        <div className="p-3.5 rounded-2xl bg-amber-950/40 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Lock className="w-4 h-4 text-amber-400" />
-            <span>You are viewing calibration in read-only mode. Log in as <strong>admin@skyguard.ai</strong> to save runtime weights.</span>
-          </div>
-          {onOpenAuth && (
-            <button
-              onClick={onOpenAuth}
-              className="px-3 py-1 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold hover:bg-amber-500 hover:text-slate-900 transition-all"
-            >
-              Log In as Admin
-            </button>
-          )}
+        <div className="p-4 rounded-2xl bg-emerald-950/90 border border-emerald-500/40 text-emerald-300 text-xs font-mono shadow-xl flex items-center justify-between animate-fadeIn">
+          <span>✅ {toastMsg}</span>
+          <button onClick={() => setToastMsg(null)} className="text-slate-400 hover:text-white font-bold ml-2">✕</button>
         </div>
       )}
 
