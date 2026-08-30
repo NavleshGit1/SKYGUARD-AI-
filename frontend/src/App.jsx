@@ -363,7 +363,11 @@ export default function App() {
           {/* TAB 7: CALIBRATION & SYSTEM SETTINGS */}
           {activeTab === 'admin' && (
             <div className="space-y-6 animate-fadeIn">
-              <AdminSettings token={token} onRefreshData={fetchInitialData} />
+              <AdminSettings
+                token={token}
+                onRefreshData={fetchInitialData}
+                onOpenAuth={() => setIsAuthModalOpen(true)}
+              />
             </div>
           )}
         </main>
