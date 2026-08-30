@@ -61,15 +61,17 @@ export default function App() {
   const fetchInitialData = async () => {
     try {
       const [stRes, anomRes] = await Promise.all([
-        api.get('/api/v1/stations'),
-        api.get('/api/v1/anomalies?limit=50')
+        api.get('/api/v1/stations').catch(() => ({ data: [] })),
+        api.get('/api/v1/anomalies?limit=50').catch(() => ({ data: [] }))
       ]);
-      setStations(stRes.data);
-      setAnomalies(anomRes.data);
+      const stList = Array.isArray(stRes.data) ? stRes.data : [];
+      const anomList = Array.isArray(anomRes.data) ? anomRes.data : [];
+      setStations(stList);
+      setAnomalies(anomList);
 
-      if (stRes.data.length > 0 && !selectedStationRef.current) {
-        setSelectedStation(stRes.data[0]);
-        fetchStationTelemetry(stRes.data[0].station_id);
+      if (stList.length > 0 && !selectedStationRef.current) {
+        setSelectedStation(stList[0]);
+        fetchStationTelemetry(stList[0].station_id);
       }
     } catch (err) {
       console.error('Failed to load initial data:', err);
@@ -78,8 +80,8 @@ export default function App() {
 
   const fetchStationTelemetry = async (stationId) => {
     try {
-      const res = await api.get(`/api/v1/stations/${stationId}`);
-      if (res.data.recent_readings) {
+      const res = await api.get(`/api/v1/stations/${stationId}`).catch(() => null);
+      if (res?.data?.recent_readings && Array.isArray(res.data.recent_readings)) {
         setReadings(res.data.recent_readings);
       }
     } catch (err) {
@@ -89,14 +91,22 @@ export default function App() {
 
   useEffect(() => {
     fetchInitialData();
-    // Safety poll every 8s
+    // Active poll every 4s to guarantee real-time telemetry streaming in all network conditions
     const pollInterval = setInterval(() => {
-      api.get('/api/v1/stations').then(res => setStations(res.data)).catch(() => {});
-      api.get('/api/v1/anomalies?limit=50').then(res => setAnomalies(res.data)).catch(() => {});
+      api.get('/api/v1/stations').then(res => {
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          setStations(res.data);
+        }
+      }).catch(() => {});
+      api.get('/api/v1/anomalies?limit=50').then(res => {
+        if (Array.isArray(res.data)) {
+          setAnomalies(res.data);
+        }
+      }).catch(() => {});
       if (selectedStationRef.current) {
         fetchStationTelemetry(selectedStationRef.current.station_id);
       }
-    }, 8000);
+    }, 4000);
     return () => clearInterval(pollInterval);
   }, []);
 

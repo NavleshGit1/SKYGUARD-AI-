@@ -15,7 +15,7 @@ import {
   Lock
 } from 'lucide-react';
 import { sounds } from '../utils/audio';
-import { apiUrl } from '../utils/api';
+import api from '../utils/api';
 
 function SliderRow({ label, description, value, min, max, step = 0.01, unit = '', onChange }) {
   const pct = ((value - min) / (max - min)) * 100;
@@ -60,31 +60,24 @@ function AuditTrailViewer({ token }) {
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
-      const resp = await fetch(apiUrl('/api/v1/audit?limit=100&skip=0'), {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        setLogs(Array.isArray(data) ? data : data.logs ?? []);
-      }
+      const resp = await api.get('/api/v1/audit?limit=100&skip=0');
+      const data = resp.data;
+      setLogs(Array.isArray(data) ? data : data?.logs ?? []);
     } catch (e) {
-      console.error(e);
+      console.warn('Could not fetch audit logs:', e);
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, []);
 
   const verifyIntegrity = async () => {
     sounds.playClick();
     try {
-      const resp = await fetch(apiUrl('/api/v1/audit/verify'), {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      });
-      const data = await resp.json();
+      const resp = await api.get('/api/v1/audit/verify');
       sounds.playSuccessChime();
-      setVerified(data);
+      setVerified(resp.data);
     } catch (e) {
-      setVerified({ status: 'ERROR', message: String(e) });
+      setVerified({ status: 'ERROR', message: String(e?.response?.data?.detail || e.message || e) });
     }
   };
 
@@ -221,24 +214,20 @@ export default function AdminSettings({ token: propToken, onRefreshData, onOpenA
   useEffect(() => {
     const loadThresholds = async () => {
       try {
-        const resp = await fetch(apiUrl('/api/v1/admin/thresholds'), {
-          headers: activeToken ? { Authorization: `Bearer ${activeToken}` } : {}
-        });
-        if (resp.ok) {
-          const data = await resp.json();
-          const t = data.thresholds || {};
-          setWeights((prev) => ({
-            ...prev,
-            threshold_severity: t.fusion_threshold ?? prev.threshold_severity,
-            w_iforest: t.iforest_weight ?? prev.w_iforest,
-            w_autoencoder: t.autoencoder_weight ?? prev.w_autoencoder,
-            w_drift: t.drift_weight ?? prev.w_drift,
-            w_spatial: t.spatial_weight ?? prev.w_spatial,
-            cooldown_seconds: t.alert_cooldown_seconds ?? prev.cooldown_seconds,
-          }));
-        }
+        const resp = await api.get('/api/v1/admin/thresholds');
+        const data = resp.data;
+        const t = data?.thresholds || {};
+        setWeights((prev) => ({
+          ...prev,
+          threshold_severity: t.fusion_threshold ?? prev.threshold_severity,
+          w_iforest: t.iforest_weight ?? prev.w_iforest,
+          w_autoencoder: t.autoencoder_weight ?? prev.w_autoencoder,
+          w_drift: t.drift_weight ?? prev.w_drift,
+          w_spatial: t.spatial_weight ?? prev.w_spatial,
+          cooldown_seconds: t.alert_cooldown_seconds ?? prev.cooldown_seconds,
+        }));
       } catch (e) {
-        console.warn('Could not fetch server thresholds:', e);
+        console.warn('Could not fetch server thresholds (unauthenticated or offline):', e);
       }
     };
     loadThresholds();
@@ -264,46 +253,34 @@ export default function AdminSettings({ token: propToken, onRefreshData, onOpenA
     }
 
     try {
-      const resp = await fetch(apiUrl('/api/v1/admin/thresholds'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${tokenToUse}`
-        },
-        body: JSON.stringify({
-          fusion_threshold: weights.threshold_severity,
-          iforest_weight: weights.w_iforest,
-          autoencoder_weight: weights.w_autoencoder,
-          drift_weight: weights.w_drift,
-          spatial_weight: weights.w_spatial,
-          alert_cooldown_seconds: weights.cooldown_seconds
-        })
+      const resp = await api.post('/api/v1/admin/thresholds', {
+        fusion_threshold: weights.threshold_severity,
+        iforest_weight: weights.w_iforest,
+        autoencoder_weight: weights.w_autoencoder,
+        drift_weight: weights.w_drift,
+        spatial_weight: weights.w_spatial,
+        alert_cooldown_seconds: weights.cooldown_seconds
       });
 
-      if (resp.ok) {
-        sounds.playSuccessChime();
-        setToastMsg({
-          type: 'success',
-          text: 'Runtime detector weights & anomaly thresholds calibrated successfully.'
-        });
-        if (onRefreshData) onRefreshData();
-      } else if (resp.status === 401 || resp.status === 403) {
+      sounds.playSuccessChime();
+      setToastMsg({
+        type: 'success',
+        text: 'Runtime detector weights & anomaly thresholds calibrated successfully.'
+      });
+      if (onRefreshData) onRefreshData();
+    } catch (e) {
+      const status = e?.response?.status;
+      if (status === 401 || status === 403) {
         setToastMsg({
           type: 'error',
-          text: 'Session expired or insufficient privileges. Please log in as Admin.'
+          text: 'Session expired or insufficient privileges. Please log in as Admin (admin@skyguard.ai).'
         });
       } else {
-        const errData = await resp.json().catch(() => ({}));
         setToastMsg({
           type: 'error',
-          text: `Calibration update failed: ${errData.detail || resp.statusText}`
+          text: `Calibration update failed: ${e?.response?.data?.detail || e.message || 'Unknown error'}`
         });
       }
-    } catch (e) {
-      setToastMsg({
-        type: 'error',
-        text: `Network Error: ${String(e.message || e)}`
-      });
     } finally {
       setSaving(false);
     }
@@ -324,30 +301,18 @@ export default function AdminSettings({ token: propToken, onRefreshData, onOpenA
     }
 
     try {
-      const resp = await fetch(apiUrl('/api/v1/admin/retrain'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${tokenToUse}`
-        },
-        body: JSON.stringify({ models: [modelType.toLowerCase()] })
+      const resp = await api.post('/api/v1/admin/retrain', {
+        models: [modelType.toLowerCase()]
       });
-      if (resp.ok) {
-        sounds.playSuccessChime();
-        setToastMsg({
-          type: 'success',
-          text: `Retraining job scheduled for ${modelType}. Running in background.`
-        });
-      } else {
-        setToastMsg({
-          type: 'error',
-          text: `Retraining request failed (HTTP ${resp.status}).`
-        });
-      }
+      sounds.playSuccessChime();
+      setToastMsg({
+        type: 'success',
+        text: `Retraining job scheduled for ${modelType}. Running in background.`
+      });
     } catch (e) {
       setToastMsg({
         type: 'error',
-        text: `Retraining error: ${String(e.message || e)}`
+        text: `Retraining error: ${e?.response?.data?.detail || e.message || 'Request failed'}`
       });
     } finally {
       setRetrainingModel(null);
