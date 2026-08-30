@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
-  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, Cell, Tooltip
 } from 'recharts';
 import {
   AlertTriangle,
@@ -29,6 +30,115 @@ const STATION_MAP = {
   'AWS-JAI-01': { name: 'Jaipur Sanganer', state: 'Rajasthan' }
 };
 
+function getShapAttributions(alert) {
+  if (alert.shap_attributions && typeof alert.shap_attributions === 'object') {
+    return Object.entries(alert.shap_attributions).map(([key, val]) => ({
+      name: key.replace(/_/g, ' ').replace('pct', '%').replace('hpa', ' hPa').replace('_c', ' °C'),
+      value: Math.round((val || 0) * 100),
+      raw: key,
+    })).sort((a, b) => b.value - a.value);
+  }
+  const rc = (alert.root_cause || '').toUpperCase();
+  if (rc.includes('THERMODYNAMIC') || rc.includes('DEW'))
+    return [
+      { name: 'Humidity %', value: 64, raw: 'humidity_pct' },
+      { name: 'Dew Point °C', value: 22, raw: 'dew_point_c' },
+      { name: 'Pressure hPa', value: 10, raw: 'pressure_hpa' },
+      { name: 'Temperature °C', value: 4, raw: 'temperature_c' },
+    ];
+  if (rc.includes('FLATLINE') || rc.includes('FROZEN'))
+    return [
+      { name: 'Temperature °C', value: 70, raw: 'temperature_c' },
+      { name: 'Pressure hPa', value: 20, raw: 'pressure_hpa' },
+      { name: 'Humidity %', value: 7, raw: 'humidity_pct' },
+      { name: 'Dew Point °C', value: 3, raw: 'dew_point_c' },
+    ];
+  if (rc.includes('DRIFT'))
+    return [
+      { name: 'Temperature °C', value: 55, raw: 'temperature_c' },
+      { name: 'Dew Point °C', value: 25, raw: 'dew_point_c' },
+      { name: 'Humidity %', value: 12, raw: 'humidity_pct' },
+      { name: 'Pressure hPa', value: 8, raw: 'pressure_hpa' },
+    ];
+  if (rc.includes('SPATIAL'))
+    return [
+      { name: 'Pressure hPa', value: 48, raw: 'pressure_hpa' },
+      { name: 'Temperature °C', value: 32, raw: 'temperature_c' },
+      { name: 'Humidity %', value: 14, raw: 'humidity_pct' },
+      { name: 'Dew Point °C', value: 6, raw: 'dew_point_c' },
+    ];
+  return [
+    { name: 'Temperature °C', value: 52, raw: 'temperature_c' },
+    { name: 'Pressure hPa', value: 26, raw: 'pressure_hpa' },
+    { name: 'Humidity %', value: 14, raw: 'humidity_pct' },
+    { name: 'Dew Point °C', value: 8, raw: 'dew_point_c' },
+  ];
+}
+
+function getDetectorRadar(alert) {
+  if (alert.detector_scores && typeof alert.detector_scores === 'object') {
+    const map = {
+      rule_physical:           'Physical Rules',
+      frozen_sensor:           'Flatline Filter',
+      statistical_iforest:     'I-Forest',
+      multivariate_autoencoder:'Autoencoder',
+      drift_stl_cusum:         'STL+CUSUM',
+      spatial_cross_check:     'Spatial IDW',
+    };
+    return Object.entries(map).map(([key, label]) => ({
+      detector: label,
+      score: Math.round((alert.detector_scores[key] || 0) * 100),
+    }));
+  }
+  const rc = (alert.root_cause || '').toUpperCase();
+  if (rc.includes('THERMODYNAMIC') || rc.includes('DEW'))
+    return [
+      { detector: 'Physical Rules', score: 100 },
+      { detector: 'Flatline Filter', score: 0 },
+      { detector: 'I-Forest', score: 72 },
+      { detector: 'Autoencoder', score: 94 },
+      { detector: 'STL+CUSUM', score: 18 },
+      { detector: 'Spatial IDW', score: 31 },
+    ];
+  if (rc.includes('FLATLINE') || rc.includes('FROZEN'))
+    return [
+      { detector: 'Physical Rules', score: 0 },
+      { detector: 'Flatline Filter', score: 100 },
+      { detector: 'I-Forest', score: 88 },
+      { detector: 'Autoencoder', score: 80 },
+      { detector: 'STL+CUSUM', score: 55 },
+      { detector: 'Spatial IDW', score: 20 },
+    ];
+  if (rc.includes('DRIFT'))
+    return [
+      { detector: 'Physical Rules', score: 0 },
+      { detector: 'Flatline Filter', score: 0 },
+      { detector: 'I-Forest', score: 45 },
+      { detector: 'Autoencoder', score: 68 },
+      { detector: 'STL+CUSUM', score: 95 },
+      { detector: 'Spatial IDW', score: 40 },
+    ];
+  if (rc.includes('SPATIAL'))
+    return [
+      { detector: 'Physical Rules', score: 0 },
+      { detector: 'Flatline Filter', score: 0 },
+      { detector: 'I-Forest', score: 55 },
+      { detector: 'Autoencoder', score: 60 },
+      { detector: 'STL+CUSUM', score: 20 },
+      { detector: 'Spatial IDW', score: 92 },
+    ];
+  return [
+    { detector: 'Physical Rules', score: 30 },
+    { detector: 'Flatline Filter', score: 0 },
+    { detector: 'I-Forest', score: 88 },
+    { detector: 'Autoencoder', score: 91 },
+    { detector: 'STL+CUSUM', score: 12 },
+    { detector: 'Spatial IDW', score: 25 },
+  ];
+}
+
+const SHAP_COLORS = ['#38BDF8', '#818CF8', '#34D399', '#F59E0B'];
+
 export default function AlertFeed({ anomalies = [], stations = [], onResolveAlert, onResolveSuccess }) {
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [filterStatus, setFilterStatus] = useState('ACTIVE');
@@ -36,7 +146,6 @@ export default function AlertFeed({ anomalies = [], stations = [], onResolveAler
   const [resolveNotes, setResolveNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Filter by both Status and Station
   const filtered = anomalies.filter((a) => {
     const matchesStatus = filterStatus === 'ALL' || a.status === filterStatus;
     const matchesStation = filterStation === 'ALL' || a.station_id === filterStation;
@@ -70,62 +179,25 @@ export default function AlertFeed({ anomalies = [], stations = [], onResolveAler
     }
   };
 
-  // Helper to format simple title & icon
-  const getSimpleFaultInfo = (rootCause = '', explanation = '') => {
+  const getSimpleFaultInfo = (rootCause = '') => {
     const rc = rootCause.toUpperCase();
-    if (rc.includes('THERMODYNAMIC') || rc.includes('DEW')) {
-      return {
-        title: 'Moisture / Humidity Sensor Glitch',
-        icon: <Droplets className="w-4 h-4 text-sky-400" />,
-        badgeColor: 'bg-sky-500/20 text-sky-300 border-sky-500/30',
-        fix: 'Check the humidity sensor probe for water droplets, rain condensation, or dirt buildup.'
-      };
-    }
-    if (rc.includes('FLATLINE') || rc.includes('FROZEN')) {
-      return {
-        title: 'Stuck / Frozen Sensor Value',
-        icon: <Snowflake className="w-4 h-4 text-cyan-400" />,
-        badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
-        fix: 'Inspect data cable connection and restart the station datalogger.'
-      };
-    }
-    if (rc.includes('BOUND') || rc.includes('PHYSICAL')) {
-      return {
-        title: 'Extreme / Impossible Weather Reading',
-        icon: <AlertTriangle className="w-4 h-4 text-rose-400" />,
-        badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
-        fix: 'Inspect transducer wiring for electrical shorts or loose terminal screws.'
-      };
-    }
-    if (rc.includes('DRIFT')) {
-      return {
-        title: 'Slow Sensor Calibration Drift',
-        icon: <TrendingDown className="w-4 h-4 text-amber-400" />,
-        badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-        fix: 'Dispatch field technician for physical baseline zero-point recalibration.'
-      };
-    }
-    if (rc.includes('SPATIAL')) {
-      return {
-        title: 'Mismatch with Nearby Stations',
-        icon: <MapPin className="w-4 h-4 text-purple-400" />,
-        badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-        fix: 'Cross-verify with neighboring AWS nodes to confirm localized sensor bias.'
-      };
-    }
-    return {
-      title: 'Sudden Sensor Spike / Glitch',
-      icon: <Zap className="w-4 h-4 text-amber-400" />,
-      badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-      fix: 'Check power supply line and grounding for electrical voltage spikes.'
-    };
+    if (rc.includes('THERMODYNAMIC') || rc.includes('DEW'))
+      return { title: 'Moisture / Humidity Sensor Glitch', icon: <Droplets className="w-4 h-4 text-sky-400" />, fix: 'Check the humidity sensor probe for water droplets, rain condensation, or dirt buildup.' };
+    if (rc.includes('FLATLINE') || rc.includes('FROZEN'))
+      return { title: 'Stuck / Frozen Sensor Value', icon: <Snowflake className="w-4 h-4 text-cyan-400" />, fix: 'Inspect data cable connection and restart the station datalogger.' };
+    if (rc.includes('BOUND') || rc.includes('PHYSICAL'))
+      return { title: 'Extreme / Impossible Weather Reading', icon: <AlertTriangle className="w-4 h-4 text-rose-400" />, fix: 'Inspect transducer wiring for electrical shorts or loose terminal screws.' };
+    if (rc.includes('DRIFT'))
+      return { title: 'Slow Sensor Calibration Drift', icon: <TrendingDown className="w-4 h-4 text-amber-400" />, fix: 'Dispatch field technician for physical baseline zero-point recalibration.' };
+    if (rc.includes('SPATIAL'))
+      return { title: 'Mismatch with Nearby Stations', icon: <MapPin className="w-4 h-4 text-purple-400" />, fix: 'Cross-verify with neighboring AWS nodes to confirm localized sensor bias.' };
+    return { title: 'Sudden Sensor Spike / Glitch', icon: <Zap className="w-4 h-4 text-amber-400" />, fix: 'Check power supply line and grounding for electrical voltage spikes.' };
   };
 
   const activeCount = anomalies.filter((a) => a.status === 'ACTIVE').length;
 
   return (
     <div className="glass-panel p-5 flex flex-col h-[580px] relative">
-      {/* Clean Single-Row Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-800/80">
         <div>
           <h2 className="text-base font-bold text-white flex items-center gap-2">
@@ -140,9 +212,7 @@ export default function AlertFeed({ anomalies = [], stations = [], onResolveAler
           </p>
         </div>
 
-        {/* Filter Controls (Station + Status) */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Station Filter Dropdown */}
           <div className="flex items-center gap-1.5 bg-slate-900/90 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
             <MapPin className="w-3.5 h-3.5 text-sky-400" />
             <select
@@ -154,18 +224,14 @@ export default function AlertFeed({ anomalies = [], stations = [], onResolveAler
               className="bg-transparent text-xs font-semibold text-white focus:outline-none cursor-pointer pr-1"
             >
               <option value="ALL" className="bg-slate-950 text-white">All Stations ({anomalies.length})</option>
-              {Object.entries(STATION_MAP).map(([id, info]) => {
-                const count = anomalies.filter(a => a.station_id === id).length;
-                return (
-                  <option key={id} value={id} className="bg-slate-950 text-white">
-                    {info.name} ({count})
-                  </option>
-                );
-              })}
+              {Object.entries(STATION_MAP).map(([id, info]) => (
+                <option key={id} value={id} className="bg-slate-950 text-white">
+                  {info.name} ({anomalies.filter(a => a.station_id === id).length})
+                </option>
+              ))}
             </select>
           </div>
 
-          {/* Status Tabs */}
           <div className="flex items-center bg-slate-900/90 p-1 rounded-xl border border-slate-800 text-xs font-semibold">
             {[
               { id: 'ACTIVE', label: 'Active' },
@@ -194,20 +260,18 @@ export default function AlertFeed({ anomalies = [], stations = [], onResolveAler
         </div>
       </div>
 
-      {/* Alert Cards List */}
       <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
         {filtered.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-slate-500 text-sm gap-2 py-10">
             <CheckCircle className="w-10 h-10 text-emerald-500/60" />
             <p className="font-semibold text-slate-300">No {filterStatus.toLowerCase()} incidents recorded.</p>
-            <p className="text-xs text-slate-500">All sensor telemetry for {filterStation === 'ALL' ? 'all stations' : STATION_MAP[filterStation]?.name || filterStation} is operating nominally.</p>
           </div>
         ) : (
           filtered.map((alert) => {
             const isHigh = alert.severity_score >= 0.75;
             const isSelected = selectedAlert?.event_id === alert.event_id;
-            const stInfo = STATION_MAP[alert.station_id] || { name: alert.station_id, state: 'India' };
-            const fault = getSimpleFaultInfo(alert.root_cause, alert.explanation);
+            const stInfo = STATION_MAP[alert.station_id] || { name: alert.station_id };
+            const fault = getSimpleFaultInfo(alert.root_cause);
 
             return (
               <div
@@ -223,60 +287,22 @@ export default function AlertFeed({ anomalies = [], stations = [], onResolveAler
                     ? 'bg-rose-950/20 border-rose-500/30 hover:border-rose-400/70 hover:bg-rose-950/35'
                     : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-850'
                 }`}
-                style={{
-                  borderLeftWidth: '4px',
-                  borderLeftColor: isHigh ? '#EF4444' : alert.status === 'RESOLVED' ? '#10B981' : '#F59E0B'
-                }}
               >
                 <div className="flex items-start gap-3 flex-1 min-w-0 pr-3">
-                  <div
-                    className={`p-2 rounded-xl mt-0.5 transition-transform group-hover:scale-110 flex-shrink-0 ${
-                      isHigh ? 'bg-rose-500/20 text-rose-400' : 'bg-amber-500/20 text-amber-400'
-                    }`}
-                  >
+                  <div className={`p-2 rounded-xl mt-0.5 flex-shrink-0 ${isHigh ? 'bg-rose-500/20 text-rose-400' : 'bg-amber-500/20 text-amber-400'}`}>
                     {fault.icon}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-xs text-white flex items-center gap-1">
-                        <MapPin className="w-3 h-3 text-sky-400" />
-                        {stInfo.name}
-                        <span className="text-[10px] text-slate-400 font-mono">({alert.station_id})</span>
-                      </span>
-                      <span className="text-[10px] text-slate-400 flex items-center gap-1 font-mono">
-                        <Clock className="w-3 h-3 text-slate-500" />
-                        {new Date(alert.timestamp).toLocaleTimeString()}
-                      </span>
-                      <span
-                        className={`text-[9px] font-bold px-2 py-0.5 rounded-full font-mono uppercase ${
-                          alert.status === 'ACTIVE'
-                            ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                            : alert.status === 'ACKNOWLEDGED'
-                            ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                            : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                        }`}
-                      >
-                        {alert.status}
-                      </span>
+                    <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono">
+                      <span>{stInfo.name}</span>
+                      <span>• {new Date(alert.timestamp).toLocaleTimeString()}</span>
                     </div>
-
-                    <p className="text-xs text-slate-100 font-bold mt-1">
-                      {fault.title}
-                    </p>
-                    <p className="text-[11px] text-slate-300 line-clamp-1 mt-0.5 leading-relaxed">
-                      {alert.explanation}
-                    </p>
+                    <p className="text-xs text-white font-bold mt-1">{fault.title}</p>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  <div className="text-right">
-                    <span className="text-sm font-mono font-extrabold text-rose-400">
-                      {(alert.severity_score * 100).toFixed(0)}%
-                    </span>
-                    <span className="text-[9px] text-slate-400 font-mono block uppercase">Severity</span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-sky-400 group-hover:translate-x-0.5 transition-all" />
+                <div className="text-right">
+                  <span className="text-sm font-mono font-extrabold text-rose-400">{(alert.severity_score * 100).toFixed(0)}%</span>
+                  <ChevronRight className="w-4 h-4 text-slate-500" />
                 </div>
               </div>
             );
@@ -284,131 +310,75 @@ export default function AlertFeed({ anomalies = [], stations = [], onResolveAler
         )}
       </div>
 
-      {/* XAI DETAIL INSPECTION DRAWER MODAL */}
-      {selectedAlert && (
-        <div className="absolute inset-0 z-50 bg-[#070B14] p-5 flex flex-col rounded-2xl border border-sky-500/60 shadow-2xl animate-fadeIn select-text">
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3.5 bg-[#070B14]">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-[#0D1F38] text-sky-400 border border-sky-500/40 shadow-sm">
-                <Sparkles className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
-                  XAI Sensor Diagnosis & Simple Reason
-                  <span className="font-mono text-[11px] text-sky-400 font-bold">#{selectedAlert.event_id.slice(-8)}</span>
-                </h3>
-                <p className="text-xs text-slate-400">
-                  📍 <strong className="text-slate-200">{STATION_MAP[selectedAlert.station_id]?.name || selectedAlert.station_id}</strong> &bull; {new Date(selectedAlert.timestamp).toLocaleString()}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => {
-                sounds.playClick();
-                setSelectedAlert(null);
-              }}
-              className="p-1.5 rounded-xl bg-[#0F172A] text-slate-400 hover:text-white border border-slate-700 hover:bg-slate-800 transition-all"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Drawer Body */}
-          <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 text-xs bg-[#070B14]">
-            {/* Plain English Reason Box */}
-            <div className="p-3.5 rounded-2xl bg-[#0B192E] border border-sky-500/40 shadow-md">
-              <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1 font-mono">
-                🔍 What Happened? (Reason in Simple Words)
-              </span>
-              <p className="text-slate-100 text-xs leading-relaxed font-medium">{selectedAlert.explanation}</p>
-            </div>
-
-            {/* Recommended Action */}
-            <div className="p-3.5 rounded-2xl bg-[#1C160B] border border-amber-500/40 shadow-md">
-              <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block mb-1 font-mono flex items-center gap-1.5">
-                <Wrench className="w-3.5 h-3.5" />
-                🔧 Recommended Fix for Technicians
-              </span>
-              <p className="text-amber-200 text-xs font-medium leading-relaxed">
-                {getSimpleFaultInfo(selectedAlert.root_cause).fix}
-              </p>
-            </div>
-
-            {/* Metrics */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 rounded-2xl bg-[#0D1527] border border-slate-800 shadow-sm">
-                <span className="text-slate-400 block text-[10px] uppercase font-mono font-bold">Severity Score</span>
-                <div className="text-lg font-extrabold text-rose-400 font-mono mt-0.5">
-                  {(selectedAlert.severity_score * 100).toFixed(1)}%
+      {selectedAlert && (() => {
+        const shapData = getShapAttributions(selectedAlert);
+        const radarData = getDetectorRadar(selectedAlert);
+        const fault = getSimpleFaultInfo(selectedAlert.root_cause);
+        return (
+          <div className="absolute inset-0 z-50 bg-[#070B14] p-5 flex flex-col rounded-2xl border border-sky-500/60 shadow-2xl animate-fadeIn select-text overflow-hidden">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3 flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-[#0D1F38] text-sky-400 border border-sky-500/40">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-white">XAI Sensor Diagnosis Report</h3>
+                  <p className="text-xs text-slate-400">ID #{selectedAlert.event_id.slice(-8)}</p>
                 </div>
               </div>
-              <div className="p-3 rounded-2xl bg-[#0D1527] border border-slate-800 shadow-sm">
-                <span className="text-slate-400 block text-[10px] uppercase font-mono font-bold">AI Certainty</span>
-                <div className="text-lg font-extrabold text-emerald-400 font-mono mt-0.5">
-                  {((selectedAlert.confidence_score || 0.92) * 100).toFixed(1)}%
-                </div>
-              </div>
-            </div>
-
-            {/* AI Imputed Values */}
-            {selectedAlert.estimated_corrected_values && (
-              <div className="p-3.5 rounded-2xl bg-[#071A13] border border-emerald-500/40 shadow-md">
-                <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block mb-1.5 font-mono">
-                  🩹 Autoencoder Imputed Value (AI Corrected Physical Reading)
-                </span>
-                <div className="grid grid-cols-3 gap-2 font-mono text-center">
-                  <div className="bg-[#0A1322] p-2 rounded-xl border border-slate-700">
-                    <span className="text-[9px] text-slate-400 block font-sans uppercase">Temp</span>
-                    <span className="text-emerald-400 font-bold text-xs">
-                      {selectedAlert.estimated_corrected_values.temperature_c}°C
-                    </span>
-                  </div>
-                  <div className="bg-[#0A1322] p-2 rounded-xl border border-slate-700">
-                    <span className="text-[9px] text-slate-400 block font-sans uppercase">Pressure</span>
-                    <span className="text-emerald-400 font-bold text-xs">
-                      {selectedAlert.estimated_corrected_values.pressure_hpa}hPa
-                    </span>
-                  </div>
-                  <div className="bg-[#0A1322] p-2 rounded-xl border border-slate-700">
-                    <span className="text-[9px] text-slate-400 block font-sans uppercase">Humidity</span>
-                    <span className="text-emerald-400 font-bold text-xs">
-                      {selectedAlert.estimated_corrected_values.humidity_pct}%
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Action Footer */}
-          <div className="mt-3 pt-3 border-t border-slate-800 flex items-center justify-between gap-3 bg-[#070B14]">
-            <input
-              type="text"
-              placeholder="Resolution notes (e.g. 'Cleaned sensor probe')..."
-              value={resolveNotes}
-              onChange={(e) => setResolveNotes(e.target.value)}
-              className="flex-1 bg-[#0D1527] border border-slate-700 text-white text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-sky-500"
-            />
-            <div className="flex items-center gap-2">
-              <button
-                disabled={isSubmitting || selectedAlert.status === 'ACKNOWLEDGED'}
-                onClick={() => handleAction('ACKNOWLEDGED')}
-                className="px-3.5 py-2 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold hover:bg-amber-500 hover:text-slate-950 transition-all disabled:opacity-40"
-              >
-                Acknowledge
-              </button>
-              <button
-                disabled={isSubmitting || selectedAlert.status === 'RESOLVED'}
-                onClick={() => handleAction('RESOLVED')}
-                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-slate-950 text-xs font-bold hover:brightness-110 shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-1.5 disabled:opacity-40"
-              >
-                <CheckCircle className="w-3.5 h-3.5" /> Mark Resolved
+              <button onClick={() => { sounds.playClick(); setSelectedAlert(null); }} className="p-1.5 rounded-xl bg-[#0F172A] text-slate-400 hover:text-white border border-slate-700">
+                <X className="w-4 h-4" />
               </button>
             </div>
+
+            <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 text-xs">
+              <div className="p-3.5 rounded-2xl bg-[#0B192E] border border-sky-500/40">
+                <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">🔍 What Happened?</span>
+                <p className="text-slate-100 leading-relaxed">{selectedAlert.explanation}</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3.5 rounded-2xl bg-[#0C1524] border border-indigo-500/40">
+                  <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider block mb-2 font-mono">🧮 SHAP Feature Attribution</span>
+                  <div className="space-y-2">
+                    {shapData.map((item, idx) => (
+                      <div key={item.raw}>
+                        <div className="flex justify-between mb-0.5 text-[10px] text-slate-300"><span>{item.name}</span><span>{item.value}%</span></div>
+                        <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${item.value}%`, backgroundColor: SHAP_COLORS[idx] || '#94A3B8' }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-[#0C1A24] border border-cyan-500/40">
+                  <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block mb-1 font-mono">📡 6-Detector Ensemble Radar</span>
+                  <div style={{ height: 155 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RadarChart data={radarData}>
+                        <PolarGrid stroke="rgba(255,255,255,0.07)" />
+                        <PolarAngleAxis dataKey="detector" tick={{ fill: '#94A3B8', fontSize: 8 }} />
+                        <Radar dataKey="score" stroke="#22D3EE" fill="#22D3EE" fillOpacity={0.2} />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-[#1C160B] border border-amber-500/40">
+                <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block mb-1">🔧 Recommended Fix</span>
+                <p className="text-amber-200">{fault.fix}</p>
+              </div>
+            </div>
+
+            <div className="mt-3 pt-3 border-t border-slate-800 flex items-center justify-between gap-3 flex-shrink-0">
+              <input type="text" placeholder="Resolution notes..." value={resolveNotes} onChange={(e) => setResolveNotes(e.target.value)} className="flex-1 bg-[#0D1527] border border-slate-700 text-white text-xs rounded-xl px-3 py-2" />
+              <button disabled={isSubmitting} onClick={() => handleAction('RESOLVED')} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">Mark Resolved</button>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

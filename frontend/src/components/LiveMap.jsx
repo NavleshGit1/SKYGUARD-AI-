@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import React, { useState, useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
 import {
   ShieldCheck,
@@ -11,7 +11,8 @@ import {
   Layers,
   Compass,
   ArrowUpRight,
-  Maximize2
+  Maximize2,
+  Map
 } from 'lucide-react';
 import { sounds } from '../utils/audio';
 
@@ -43,9 +44,28 @@ const createStatusPin = (healthScore = 100, isAnom = false) => {
   });
 };
 
+// India state boundaries GeoJSON style (Blueprint §2.2 — administrative overlay)
+const STATE_BORDER_STYLE = {
+  color: '#38BDF8',
+  weight: 0.8,
+  opacity: 0.35,
+  fillColor: '#1E3A5F',
+  fillOpacity: 0.06,
+};
+
 export default function LiveMap({ stations = [], selectedStation, onSelectStation }) {
   const [filterMode, setFilterMode] = useState('ALL'); // ALL | HEALTHY | ANOMALY
+  const [showBorders, setShowBorders] = useState(true);
+  const [indiaGeoJson, setIndiaGeoJson] = useState(null);
   const centerPosition = [22.3511, 78.6677]; // Geographic Center of India
+
+  // Load India state GeoJSON from public CDN (Blueprint §2.2)
+  useEffect(() => {
+    fetch('https://raw.githubusercontent.com/geohacker/india/master/state/india_state.geojson')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setIndiaGeoJson(data); })
+      .catch(() => {}); // Silently ignore if offline
+  }, []);
 
   const filteredStations = stations.filter((st) => {
     const isAnom = st.latest_reading?.is_anomaly;
@@ -72,28 +92,43 @@ export default function LiveMap({ stations = [], selectedStation, onSelectStatio
           </p>
         </div>
 
-        {/* Quick Filter Buttons */}
-        <div className="flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800 self-start sm:self-auto">
-          {[
-            { id: 'ALL', label: 'All Stations' },
-            { id: 'HEALTHY', label: 'Healthy (≥85)' },
-            { id: 'ANOMALY', label: 'Alerts' },
-          ].map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => {
-                sounds.playClick();
-                setFilterMode(id);
-              }}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
-                filterMode === id
-                  ? 'bg-sky-500 text-slate-950 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+        {/* Quick Filter Buttons + Border Toggle */}
+        <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+          <div className="flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800">
+            {[
+              { id: 'ALL', label: 'All Stations' },
+              { id: 'HEALTHY', label: 'Healthy (≥85)' },
+              { id: 'ANOMALY', label: 'Alerts' },
+            ].map(({ id, label }) => (
+              <button
+                key={id}
+                onClick={() => {
+                  sounds.playClick();
+                  setFilterMode(id);
+                }}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                  filterMode === id
+                    ? 'bg-sky-500 text-slate-950 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {/* State Borders Toggle — Blueprint §2.2 */}
+          <button
+            onClick={() => { sounds.playClick(); setShowBorders(v => !v); }}
+            title="Toggle India state boundary layer"
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-bold border transition-all ${
+              showBorders
+                ? 'bg-sky-500/15 border-sky-500/40 text-sky-400'
+                : 'bg-slate-900/90 border-slate-800 text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            <Map className="w-3.5 h-3.5" />
+            State Borders
+          </button>
         </div>
       </div>
 
@@ -109,6 +144,15 @@ export default function LiveMap({ stations = [], selectedStation, onSelectStatio
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
+
+          {/* India State Administrative Boundaries — Blueprint §2.2 */}
+          {showBorders && indiaGeoJson && (
+            <GeoJSON
+              key="india-states"
+              data={indiaGeoJson}
+              style={STATE_BORDER_STYLE}
+            />
+          )}
 
           {filteredStations.map((st) => {
             const isAnom = st.latest_reading?.is_anomaly;

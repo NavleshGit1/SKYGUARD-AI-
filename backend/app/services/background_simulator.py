@@ -148,22 +148,39 @@ def _apply_ui_injections(reading: Dict[str, Any]) -> Dict[str, Any]:
     return reading
 
 def seed_initial_telemetry_history():
-    """Seeds 40 smooth continuous historical baseline telemetry points at accelerated scale (1s = 3h, 8s = 1d)."""
+    """Seeds 40 smooth continuous historical baseline telemetry points at realistic 2-minute intervals."""
     # Lazy import to avoid circular import at module level
     from backend.app.api.v1.ingest import feature_engine, detector_ensemble
 
     db = SessionLocal()
     try:
         now = datetime.now(timezone.utc)
-        # Check if database has old chaotic readings or needs refresh
+        # Check if database has old chaotic readings or needs fresh realistic seeding
         total_readings = db.query(SensorReading).count()
+        sample_reading = db.query(SensorReading).order_by(SensorReading.timestamp.desc()).first()
+        needs_reseed = False
+
         if total_readings < 30:
-            logger.info("[Simulator] Initializing smooth physical baseline trajectory across all 5 AWS hubs...")
+            needs_reseed = True
+        elif sample_reading and sample_reading.timestamp:
+            # If newest reading is older than 2 hours, refresh
+            sample_ts = sample_reading.timestamp
+            if sample_ts.tzinfo is None:
+                sample_ts = sample_ts.replace(tzinfo=timezone.utc)
+            if (now - sample_ts).total_seconds() > 7200:
+                needs_reseed = True
+
+        if needs_reseed:
+            logger.info("[Simulator] Initializing smooth physical baseline trajectory (2-min intervals) across all 5 AWS hubs...")
+            # Purge stale coarse historical readings to ensure clean chart visuals
+            db.query(SensorReading).delete()
+            db.commit()
+
             for st_id, cfg in STATIONS_CONFIG.items():
                 temp_state = StationAtmosphericState(st_id, cfg)
                 for i in range(40, 0, -1):
-                    # Accelerated scale: 3 hours per step (8 steps = 1 day)
-                    point_time = now - timedelta(hours=i * 3.0)
+                    # Realistic scale: 2 minutes per historical reading
+                    point_time = now - timedelta(minutes=i * 2.0)
                     reading = temp_state.step(point_time)
                     features = feature_engine.extract_features(reading)
                     detection = detector_ensemble.detect(features)
@@ -259,7 +276,7 @@ def seed_initial_telemetry_history():
         db.close()
 
 async def start_background_simulator_loop():
-    """Continuous async loop executing ML inference and broadcasting to WebSockets at 1s = 3h, 8s = 1d scale."""
+    """Continuous async loop executing ML inference and broadcasting to WebSockets in real time."""
     # Lazy imports — avoids circular import at module load time
     from backend.app.api.v1.websocket import ws_manager
     from backend.app.api.v1.ingest import (
@@ -271,28 +288,24 @@ async def start_background_simulator_loop():
         alert_manager,
     )
 
-    logger.info("[Simulator] Initializing High-Fidelity Background Weather Stream (1s = 3h / 8s = 1d scale)...")
+    logger.info("[Simulator] Initializing High-Fidelity Real-Time Background Weather Stream...")
 
     # 1. Ensure continuous baseline history
     await asyncio.to_thread(seed_initial_telemetry_history)
 
     station_keys = list(STATIONS_CONFIG.keys())
     step = 0
-    sim_base_time = datetime.now(timezone.utc)
-    loop_start_real = time.time()
 
     while True:
         try:
-            # Scale: 1 real second = 3 simulated hours (8 real seconds = 24 simulated hours = 1 full day)
-            elapsed_real_sec = time.time() - loop_start_real
-            simulated_now = sim_base_time + timedelta(hours=elapsed_real_sec * 3.0)
+            now = datetime.now(timezone.utc)
 
             # Cycle through all 5 stations
             st_id = station_keys[step % len(station_keys)]
             step += 1
 
             # 1. Generate continuous physics reading & apply UI injections
-            reading = _generate_synthetic_reading(st_id, simulated_now)
+            reading = _generate_synthetic_reading(st_id, now)
             reading = _apply_ui_injections(reading)
 
             # 2. Extract Features & Multi-Detector ML Inference
@@ -368,8 +381,6 @@ async def start_background_simulator_loop():
                 db.close()
 
             # 4. Broadcast live packet to all connected WebSockets
-            # FIX: Restore top-level "imputed" key consumed by frontend App.jsx
-            # (data.imputed?.is_imputed / data.imputed?.temperature_c)
             broadcast_payload = {
                 "type": "TELEMETRY_INGESTED",
                 "station_id": st_id,

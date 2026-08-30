@@ -351,6 +351,7 @@ export default function App() {
             <div className="space-y-6 animate-fadeIn">
               <SimulatorPanel
                 stations={stations}
+                onTabChange={setActiveTab}
                 onInjectionSuccess={() => {
                   fetchInitialData();
                   sounds.playSuccessChime();
@@ -358,6 +359,7 @@ export default function App() {
               />
             </div>
           )}
+
 
           {/* TAB 7: CALIBRATION & SYSTEM SETTINGS */}
           {activeTab === 'admin' && (
