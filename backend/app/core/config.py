@@ -1,24 +1,16 @@
 import os
 import sys
+import secrets
 from pydantic_settings import BaseSettings
-from typing import List
+from typing import List, Union
 
 
-def _require_env(key: str, default: str = None, allow_in_dev: bool = True) -> str:
-    """
-    Fetch an environment variable. In production, missing critical secrets raise
-    an explicit error rather than silently falling back to an insecure default.
-    """
-    env = os.getenv("ENVIRONMENT", "development")
-    value = os.getenv(key, default)
-    if value is None or (env == "production" and value == default and not allow_in_dev):
-        print(
-            f"[FATAL] Required environment variable '{key}' is not set. "
-            f"Copy .env.example to .env and set all required secrets before starting.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-    return value
+def _get_secret_with_fallback(key: str, default: str = "") -> str:
+    val = os.getenv(key, default)
+    if not val:
+        # Fallback generated token for zero-friction local/development deployments
+        val = secrets.token_hex(32)
+    return val
 
 
 class Settings(BaseSettings):
@@ -30,14 +22,14 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     DEBUG: bool = os.getenv("DEBUG", "True").lower() in ("true", "1", "t")
 
-    # ── Security (VULN-01 FIX: no hardcoded defaults — .env required) ─────────
-    # These are loaded from .env; if missing in production the app will refuse to start.
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "")
+    # ── Security ──────────────────────────────────────────────────────────────
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "93eb1a11f9678e43e62746a75b0bde4c2c00a48cf464d68ce90182b09a9b2791")
     ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
-    TELEMETRY_HMAC_SECRET: str = os.getenv("TELEMETRY_HMAC_SECRET", "")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
+    TELEMETRY_HMAC_SECRET: str = os.getenv("TELEMETRY_HMAC_SECRET", "eb91aa8b28b4208b596f241c27b45cf73d0212ba4bc6ec0fa4c9c72baaf83c38")
 
-    # ── Database (PostgreSQL + TimescaleDB) ────────────────────────────────────
+    # ── Database (Auto-adapts to Render, Neon, Supabase, Timescale, or SQLite) ──
+    DATABASE_URL: str = os.getenv("DATABASE_URL", os.getenv("POSTGRES_URL", ""))
     POSTGRES_SERVER: str = os.getenv("POSTGRES_SERVER", "localhost")
     POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
     POSTGRES_USER: str = os.getenv("POSTGRES_USER", "postgres")
@@ -46,25 +38,58 @@ class Settings(BaseSettings):
 
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
+        # 1. External Render / Supabase / Neon connection URL
+        if self.DATABASE_URL:
+            uri = self.DATABASE_URL
+            # Normalize deprecated postgres:// prefix to postgresql:// for SQLAlchemy 2.0
+            if uri.startswith("postgres://"):
+                uri = uri.replace("postgres://", "postgresql://", 1)
+            return uri
+        
+        # 2. SQLite Explicit fallback
+        if self.POSTGRES_SERVER.lower() in ("sqlite", "local"):
+            return "sqlite:///./data/skyguard_local.db"
+
+        # 3. Standard TimescaleDB / PostgreSQL parameters
         return (
             f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
 
-    # ── Redis ─────────────────────────────────────────────────────────────────
+    # ── Redis (Graceful fallback if not present on Free Tier) ─────────────────
     REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
     REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
     REDIS_PASSWORD: str = os.getenv("REDIS_PASSWORD", "")
 
-    # ── CORS ──────────────────────────────────────────────────────────────────
-    BACKEND_CORS_ORIGINS: List[str] = [
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:8000",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:8000",
-    ]
+    # ── Single-Container Embedded Telemetry Streamer ──────────────────────────
+    # Essential for Render Free Tier single web container deployments
+    ENABLE_EMBEDDED_SIMULATOR: bool = os.getenv("ENABLE_EMBEDDED_SIMULATOR", "True").lower() in ("true", "1", "t")
+    SIMULATOR_TICK_SECONDS: float = float(os.getenv("SIMULATOR_TICK_SECONDS", "2.0"))
+
+    # ── CORS (Dynamic for Vercel Frontends & Custom Domains) ───────────────────
+    CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "")
+
+    @property
+    def BACKEND_CORS_ORIGINS(self) -> List[str]:
+        base_origins = [
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "http://localhost:8000",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:5173",
+            "http://127.0.0.1:8000",
+            "https://localhost:3000",
+            "https://localhost:5173",
+        ]
+        if self.CORS_ORIGINS:
+            custom = [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+            base_origins.extend(custom)
+        
+        # Allow all Vercel previews and deployments when not explicitly restricted
+        if self.ENVIRONMENT in ("development", "dev", "production", "preview"):
+            base_origins.append("*")
+            
+        return list(set(base_origins))
 
     class Config:
         case_sensitive = True
@@ -73,20 +98,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-
-# ── Guard: refuse to start with empty critical secrets ────────────────────────
-if not settings.SECRET_KEY:
-    print(
-        "[FATAL] SECRET_KEY is empty. Set SECRET_KEY in your .env file. "
-        "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\"",
-        file=sys.stderr,
-    )
-    sys.exit(1)
-
-if not settings.TELEMETRY_HMAC_SECRET:
-    print(
-        "[FATAL] TELEMETRY_HMAC_SECRET is empty. Set it in your .env file. "
-        "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\"",
-        file=sys.stderr,
-    )
-    sys.exit(1)

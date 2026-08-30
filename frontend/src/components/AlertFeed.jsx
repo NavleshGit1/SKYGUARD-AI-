@@ -18,7 +18,7 @@ import {
   Snowflake,
   TrendingDown
 } from 'lucide-react';
-import axios from 'axios';
+import api from '../utils/api';
 import { sounds } from '../utils/audio';
 
 const STATION_MAP = {
@@ -47,7 +47,7 @@ export default function AlertFeed({ anomalies = [], stations = [], onResolveAler
     if (!selectedAlert) return;
     setIsSubmitting(true);
     try {
-      await axios.patch(`/api/v1/anomalies/${selectedAlert.event_id}/resolve`, {
+      await api.patch(`/api/v1/anomalies/${selectedAlert.event_id}/resolve`, {
         status: newStatus,
         resolved_by: 'Operator (Web UI)',
         resolution_notes: resolveNotes || `Incident ${newStatus.toLowerCase()} via Incident Center.`

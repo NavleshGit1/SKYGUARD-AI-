@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: skyguard-backend
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: TELEMETRY_HMAC_SECRET
+        generateValue: true
+      - key: ENABLE_EMBEDDED_SIMULATOR
+        value: "true"
+      - key: SIMULATOR_TICK_SECONDS
+        value: "3"
+      - key: CORS_ORIGINS
+        value: "https://*.vercel.app,http://localhost:5173"

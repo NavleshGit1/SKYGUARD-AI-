@@ -16,14 +16,16 @@ ENV/
 .env.*.local
 .venv
 
-# Data & Models (large binaries)
+# Data & Models
 data/raw/*.csv
 !data/raw/.gitkeep
 data/processed/*.csv
 !data/processed/.gitkeep
-models/*.pkl
-models/*.pt
+models/*
 !models/.gitkeep
+!models/autoencoder.pt
+!models/isolation_forest.pkl
+!models/scaler.pkl
 
 # IDE / OS
 .vscode/
@@ -39,4 +41,8 @@ frontend/.env.local
 
 # Docker
 .docker/
+
+# Documentation (Only keep README.md tracked)
+*.md
+!README.md
 

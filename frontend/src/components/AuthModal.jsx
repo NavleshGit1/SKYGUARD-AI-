@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Lock, Mail, ShieldCheck } from 'lucide-react';
-import axios from 'axios';
+import api from '../utils/api';
 
 export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
   const [email, setEmail] = useState('admin@skyguard.ai');
@@ -20,7 +20,9 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
       formData.append('username', email);
       formData.append('password', password);
 
-      const res = await axios.post('/api/v1/auth/login', formData);
+      const res = await api.post('/api/v1/auth/login', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
       localStorage.setItem('skyguard_token', res.data.access_token);
       onLoginSuccess(res.data.user);
       onClose();

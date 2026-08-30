@@ -106,12 +106,12 @@ def train_12_year_models():
     joblib.dump(scaler, scaler_out)
     print(f"      [OK] Fitted & saved StandardScaler to {scaler_out}")
 
-    # 3. Train Isolation Forest on 12-Year Dataset
+    # 3. Train Isolation Forest on 12-Year Dataset (Optimized with standard subsampling)
     print(f"\n[3/4] Training Statistical Isolation Forest on {len(X_scaled):,} 12-year observations...")
     t0_if = time.perf_counter()
     iforest = IsolationForest(
-        n_estimators=150,
-        max_samples=0.8,
+        n_estimators=100,
+        max_samples=256,
         contamination=0.01,
         random_state=42,
         n_jobs=-1
@@ -119,7 +119,7 @@ def train_12_year_models():
     iforest.fit(X_scaled)
     t_if = time.perf_counter() - t0_if
     if_out = os.path.join(MODELS_DIR, "isolation_forest.pkl")
-    joblib.dump(iforest, if_out)
+    joblib.dump(iforest, if_out, compress=3)
     print(f"      [OK] Isolation Forest trained in {t_if:.2f}s and saved to {if_out}")
 
     # 4. Train PyTorch Deep Bottleneck Autoencoder

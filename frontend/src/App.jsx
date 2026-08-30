@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import api, { getWebSocketUrl } from './utils/api';
 import Header from './components/Header';
 import LiveTicker from './components/LiveTicker';
 import ToastContainer from './components/ToastContainer';
@@ -61,8 +61,8 @@ export default function App() {
   const fetchInitialData = async () => {
     try {
       const [stRes, anomRes] = await Promise.all([
-        axios.get('/api/v1/stations'),
-        axios.get('/api/v1/anomalies?limit=50')
+        api.get('/api/v1/stations'),
+        api.get('/api/v1/anomalies?limit=50')
       ]);
       setStations(stRes.data);
       setAnomalies(anomRes.data);
@@ -78,7 +78,7 @@ export default function App() {
 
   const fetchStationTelemetry = async (stationId) => {
     try {
-      const res = await axios.get(`/api/v1/stations/${stationId}`);
+      const res = await api.get(`/api/v1/stations/${stationId}`);
       if (res.data.recent_readings) {
         setReadings(res.data.recent_readings);
       }
@@ -91,8 +91,8 @@ export default function App() {
     fetchInitialData();
     // Safety poll every 8s
     const pollInterval = setInterval(() => {
-      axios.get('/api/v1/stations').then(res => setStations(res.data)).catch(() => {});
-      axios.get('/api/v1/anomalies?limit=50').then(res => setAnomalies(res.data)).catch(() => {});
+      api.get('/api/v1/stations').then(res => setStations(res.data)).catch(() => {});
+      api.get('/api/v1/anomalies?limit=50').then(res => setAnomalies(res.data)).catch(() => {});
       if (selectedStationRef.current) {
         fetchStationTelemetry(selectedStationRef.current.station_id);
       }
@@ -114,11 +114,11 @@ export default function App() {
     let reconnectTimer = null;
 
     const connectWs = () => {
-      const hostname = window.location.hostname || 'localhost';
       const rawToken = localStorage.getItem('skyguard_token');
       const isValidToken = rawToken && rawToken !== 'undefined' && rawToken !== 'null' && rawToken.length > 20;
       const tokenParam = isValidToken ? `?token=${encodeURIComponent(rawToken)}` : '';
-      const wsUrl = `ws://${hostname}:8000/api/v1/ws/live-feed${tokenParam}`;
+      const baseWsUrl = getWebSocketUrl();
+      const wsUrl = `${baseWsUrl}${tokenParam}`;
       
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;

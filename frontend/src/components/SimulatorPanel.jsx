@@ -11,7 +11,7 @@ import {
   Play,
   Sliders
 } from 'lucide-react';
-import axios from 'axios';
+import api from '../utils/api';
 import { sounds } from '../utils/audio';
 
 export default function SimulatorPanel({ stations = [], onInjectSuccess }) {
@@ -79,7 +79,7 @@ export default function SimulatorPanel({ stations = [], onInjectSuccess }) {
     sounds.playFaultTrigger();
     setLoading(true);
     try {
-      const res = await axios.post('/api/v1/simulator/inject', {
+      const res = await api.post('/api/v1/simulator/inject', {
         station_id: stationId,
         anomaly_type: anomalyType,
         parameter: parameter,
