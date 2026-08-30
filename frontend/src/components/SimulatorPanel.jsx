@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Terminal,
   Zap,
@@ -9,12 +9,15 @@ import {
   Layers,
   Check,
   Play,
-  Sliders
+  Sliders,
+  Activity,
+  ShieldAlert,
+  ArrowRight
 } from 'lucide-react';
 import api from '../utils/api';
 import { sounds } from '../utils/audio';
 
-export default function SimulatorPanel({ stations = [], onInjectSuccess }) {
+export default function SimulatorPanel({ stations = [], onInjectSuccess, onTabChange }) {
   const [stationId, setStationId] = useState('AWS-DEL-01');
   const [anomalyType, setAnomalyType] = useState('SPIKE');
   const [parameter, setParameter] = useState('temperature_c');
@@ -22,6 +25,10 @@ export default function SimulatorPanel({ stations = [], onInjectSuccess }) {
   const [duration, setDuration] = useState(10);
   const [loading, setLoading] = useState(false);
   const [lastResponse, setLastResponse] = useState(null);
+  // Blueprint §8.4: Live countdown state after injection fires
+  const [countdownMax, setCountdownMax] = useState(0);
+  const [countdownLeft, setCountdownLeft] = useState(0);
+  const countdownRef = useRef(null);
 
   const FAULT_PRESETS = [
     {
@@ -87,6 +94,17 @@ export default function SimulatorPanel({ stations = [], onInjectSuccess }) {
         magnitude: parseFloat(magnitude)
       });
       setLastResponse(res.data);
+      // Blueprint §8.4: Start live countdown
+      const ticks = parseInt(duration) || 10;
+      setCountdownMax(ticks);
+      setCountdownLeft(ticks);
+      if (countdownRef.current) clearInterval(countdownRef.current);
+      countdownRef.current = setInterval(() => {
+        setCountdownLeft(prev => {
+          if (prev <= 1) { clearInterval(countdownRef.current); return 0; }
+          return prev - 1;
+        });
+      }, 2000); // 1 tick = 1 simulator cycle = ~2s
       if (onInjectSuccess) {
         onInjectSuccess(stationId);
       }
@@ -257,20 +275,66 @@ export default function SimulatorPanel({ stations = [], onInjectSuccess }) {
               </div>
             </div>
 
+            {/* Blueprint §8.4: Live Countdown + Quick-Jump Buttons after injection */}
             {lastResponse && (
-              <div className="mt-4 p-3 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 text-[11px] animate-fadeIn">
-                <div className="flex items-center gap-1.5 font-bold mb-1 text-sky-400">
-                  <Check className="w-3.5 h-3.5" />
-                  {lastResponse.status}
+              <div className="mt-4 animate-fadeIn space-y-3">
+                {/* Status Banner */}
+                <div className="p-3 rounded-lg bg-slate-900 border border-emerald-500/40">
+                  <div className="flex items-center gap-1.5 font-bold mb-1 text-emerald-400 text-[11px]">
+                    <Check className="w-3.5 h-3.5" />
+                    {lastResponse.status || 'INJECTION ARMED'}
+                  </div>
+                  <p className="text-slate-300 font-sans text-[11px] leading-relaxed">{lastResponse.message}</p>
                 </div>
-                <p className="text-slate-300 font-sans text-xs">{lastResponse.message}</p>
+
+                {/* Countdown Progress Bar */}
+                {countdownLeft > 0 ? (
+                  <div className="p-3 rounded-lg bg-slate-900 border border-amber-500/30">
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="text-[10px] text-amber-400 font-bold uppercase">Fault Active</span>
+                      <span className="text-[10px] text-amber-300 font-mono font-bold">{countdownLeft} / {countdownMax} cycles</span>
+                    </div>
+                    <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="h-2 rounded-full bg-gradient-to-r from-amber-500 to-rose-500 transition-all duration-1000"
+                        style={{ width: `${(countdownLeft / countdownMax) * 100}%` }}
+                      />
+                    </div>
+                    <p className="text-[9px] text-slate-500 mt-1.5 font-sans">Anomaly injection active — detector ensemble evaluating each cycle</p>
+                  </div>
+                ) : countdownMax > 0 ? (
+                  <div className="p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold text-center">
+                    ✅ Injection Complete — Detectors should have flagged the event
+                  </div>
+                ) : null}
+
+                {/* Quick-Jump Navigation — Blueprint §8.4 Demo Loop */}
+                <div className="space-y-1.5">
+                  <p className="text-[9px] text-slate-500 font-sans uppercase tracking-wider">Watch the detection pipeline:</p>
+                  <button
+                    onClick={() => { sounds.playClick(); onTabChange && onTabChange('telemetry'); }}
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-sky-500/10 border border-sky-500/30 text-sky-400 text-[11px] font-bold hover:bg-sky-500/25 transition-all"
+                  >
+                    <span className="flex items-center gap-1.5"><Activity className="w-3.5 h-3.5" /> Watch Telemetry Stream</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => { sounds.playClick(); onTabChange && onTabChange('alerts'); }}
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[11px] font-bold hover:bg-rose-500/25 transition-all"
+                  >
+                    <span className="flex items-center gap-1.5"><ShieldAlert className="w-3.5 h-3.5" /> Inspect Incident Center</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             )}
           </div>
 
-          <div className="p-2.5 bg-slate-900 rounded-lg text-[10px] text-slate-400 border border-slate-800 font-sans leading-relaxed">
-            💡 <strong className="text-slate-200">Demonstration Guide:</strong> Execute an injection above, then open the <strong>Telemetry Stream</strong> or <strong>Incident Center</strong> tab to observe the real-time detector response and autoencoder value imputation.
-          </div>
+          {!lastResponse && (
+            <div className="p-2.5 bg-slate-900 rounded-lg text-[10px] text-slate-400 border border-slate-800 font-sans leading-relaxed">
+              💡 <strong className="text-slate-200">Demonstration Guide:</strong> Select a fault type above, set duration &amp; magnitude, then execute. Use the jump buttons that appear to follow the real-time detection loop.
+            </div>
+          )}
         </div>
       </div>
     </div>

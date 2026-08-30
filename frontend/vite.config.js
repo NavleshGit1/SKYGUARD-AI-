@@ -21,6 +21,21 @@ export default defineConfig({
         secure: false,
       },
     }
+  },
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'axios'],
+          charts: ['recharts'],
+          maps: ['leaflet', 'react-leaflet'],
+          icons: ['lucide-react']
+        }
+      }
+    }
   }
 })
 

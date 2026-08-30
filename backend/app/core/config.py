@@ -60,6 +60,7 @@ class Settings(BaseSettings):
     REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
     REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
     REDIS_PASSWORD: str = os.getenv("REDIS_PASSWORD", "")
+    REDIS_URL: str = os.getenv("REDIS_URL", "")
 
     # ── Single-Container Embedded Telemetry Streamer ──────────────────────────
     # Essential for Render Free Tier single web container deployments

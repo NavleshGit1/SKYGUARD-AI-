@@ -43,6 +43,68 @@ const renderInjectedFaultDot = (props) => {
   return null;
 };
 
+const CustomTelemetryTooltip = ({ active, payload }) => {
+  if (!active || !payload || !payload.length) return null;
+  const data = payload[0]?.payload;
+  if (!data) return null;
+
+  return (
+    <div className="p-3 bg-slate-950/95 border border-sky-500/40 rounded-xl shadow-2xl text-xs font-mono min-w-[240px]">
+      <div className="flex items-center justify-between border-b border-slate-800 pb-1.5 mb-2">
+        <span className="text-slate-400 font-sans font-semibold">🕒 {data.time}</span>
+        {data.is_anomaly ? (
+          <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400 text-[10px] font-bold border border-rose-500/40 animate-pulse">
+            ⚠️ ANOMALY ({data.severity ? Math.round(data.severity * 100) : 85}%)
+          </span>
+        ) : (
+          <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold border border-emerald-500/40">
+            ✓ NOMINAL
+          </span>
+        )}
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <span className="text-sky-400 font-sans flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-sky-400" /> Temperature:
+          </span>
+          <span className="text-white font-bold">{data.temperature != null ? `${Number(data.temperature).toFixed(1)}°C` : '—'}</span>
+        </div>
+
+        {data.imputed_temperature != null && data.imputed_temperature !== data.temperature && (
+          <div className="flex items-center justify-between text-emerald-400 text-[11px]">
+            <span className="font-sans flex items-center gap-1.5">
+              <span className="w-2 h-0.5 bg-emerald-400 border-t border-dashed" /> AE Imputed:
+            </span>
+            <span className="font-bold">{Number(data.imputed_temperature).toFixed(1)}°C</span>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between">
+          <span className="text-indigo-400 font-sans flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-indigo-400" /> Pressure:
+          </span>
+          <span className="text-white font-bold">{data.pressure != null ? `${Number(data.pressure).toFixed(1)} hPa` : '—'}</span>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <span className="text-teal-400 font-sans flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-teal-400" /> Humidity:
+          </span>
+          <span className="text-white font-bold">{data.humidity != null ? `${Number(data.humidity).toFixed(1)}%` : '—'}</span>
+        </div>
+
+        {data.dew_point != null && (
+          <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800/80">
+            <span className="font-sans">Dew Point:</span>
+            <span>{Number(data.dew_point).toFixed(1)}°C</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export default function TelemetryChart({ stations = [], selectedStation, onSelectStation, readings = [] }) {
   const [selectedParam, setSelectedParam] = useState('ALL'); // ALL, TEMP, PRES, RH
 
@@ -73,11 +135,28 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
     };
   }).reverse();
 
-  // Compute live min/max summary
-  const temps = readings.map(r => r.temperature_c).filter(v => v != null);
-  const minTemp = temps.length ? Math.min(...temps).toFixed(1) : '—';
-  const maxTemp = temps.length ? Math.max(...temps).toFixed(1) : '—';
-  const avgTemp = temps.length ? (temps.reduce((a, b) => a + b, 0) / temps.length).toFixed(1) : '—';
+  // Compute live min/max summary based on selected parameter
+  let activeValues = [];
+  let unit = '°C';
+  let rangeLabel = 'Observed Temp:';
+
+  if (selectedParam === 'PRES') {
+    activeValues = readings.map(r => r.pressure_hpa).filter(v => v != null);
+    unit = ' hPa';
+    rangeLabel = 'Pressure Range:';
+  } else if (selectedParam === 'RH') {
+    activeValues = readings.map(r => r.humidity_pct).filter(v => v != null);
+    unit = '%';
+    rangeLabel = 'Humidity Range:';
+  } else {
+    activeValues = readings.map(r => r.temperature_c).filter(v => v != null);
+    unit = '°C';
+    rangeLabel = 'Observed Temp:';
+  }
+
+  const minVal = activeValues.length ? Math.min(...activeValues).toFixed(1) : '—';
+  const maxVal = activeValues.length ? Math.max(...activeValues).toFixed(1) : '—';
+  const avgVal = activeValues.length ? (activeValues.reduce((a, b) => a + b, 0) / activeValues.length).toFixed(1) : '—';
 
   const exportCSV = () => {
     sounds.playClick();
@@ -187,12 +266,12 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
 
       {/* Mini Stats Banner */}
       <div className="flex items-center gap-4 px-3 py-1.5 rounded-xl bg-slate-900/40 border border-slate-800/80 mb-2 text-xs font-mono text-slate-300">
-        <span className="text-[11px] text-slate-400 uppercase font-sans">Observed Range:</span>
-        <span>Min: <strong className="text-sky-400">{minTemp}°C</strong></span>
+        <span className="text-[11px] text-slate-400 uppercase font-sans">{rangeLabel}</span>
+        <span>Min: <strong className="text-sky-400">{minVal}{unit}</strong></span>
         <span className="text-slate-700">|</span>
-        <span>Avg: <strong className="text-emerald-400">{avgTemp}°C</strong></span>
+        <span>Avg: <strong className="text-emerald-400">{avgVal}{unit}</strong></span>
         <span className="text-slate-700">|</span>
-        <span>Max: <strong className="text-amber-400">{maxTemp}°C</strong></span>
+        <span>Max: <strong className="text-amber-400">{maxVal}{unit}</strong></span>
         <div className="ml-auto flex items-center gap-3 text-[10px]">
           <span className="flex items-center gap-1 text-emerald-400">
             <span className="w-2 h-0.5 bg-emerald-400 border-t border-dashed" /> Dashed = AE Imputed (Self-Healed)
@@ -211,11 +290,19 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={chartData} margin={{ top: 10, right: 15, left: -15, bottom: 0 }}>
+            <ComposedChart data={chartData} margin={{ top: 10, right: 15, left: -10, bottom: 0 }}>
               <defs>
                 <linearGradient id="tempGlow" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#38BDF8" stopOpacity={0.2} />
                   <stop offset="100%" stopColor="#38BDF8" stopOpacity={0.0} />
+                </linearGradient>
+                <linearGradient id="presGlow" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#818CF8" stopOpacity={0.2} />
+                  <stop offset="100%" stopColor="#818CF8" stopOpacity={0.0} />
+                </linearGradient>
+                <linearGradient id="rhGlow" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#2DD4BF" stopOpacity={0.2} />
+                  <stop offset="100%" stopColor="#2DD4BF" stopOpacity={0.0} />
                 </linearGradient>
               </defs>
 
@@ -229,7 +316,7 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
                 axisLine={{ stroke: 'rgba(255, 255, 255, 0.1)' }}
               />
 
-              {/* Left Y Axis: Temp */}
+              {/* Left Y Axis: Temp (in ALL or TEMP mode) */}
               {(selectedParam === 'ALL' || selectedParam === 'TEMP') && (
                 <YAxis
                   yAxisId="left"
@@ -240,49 +327,82 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
                 />
               )}
 
-              {/* Right Y Axis: Pressure */}
-              {(selectedParam === 'ALL' || selectedParam === 'PRES') && (
+              {/* Dedicated Left Y Axis when viewing Pressure alone */}
+              {selectedParam === 'PRES' && (
                 <YAxis
-                  yAxisId={selectedParam === 'PRES' ? 'left' : 'right-pres'}
-                  orientation={selectedParam === 'PRES' ? 'left' : 'right'}
+                  yAxisId="left"
                   stroke="#818CF8"
                   fontSize={11}
                   domain={['auto', 'auto']}
-                  tickFormatter={(v) => `${Number(v).toFixed(1)}hPa`}
+                  tickFormatter={(v) => `${Number(v).toFixed(1)} hPa`}
                 />
               )}
 
-              {/* Right Y Axis: RH */}
-              {(selectedParam === 'ALL' || selectedParam === 'RH') && (
+              {/* Dedicated Left Y Axis when viewing Humidity alone */}
+              {selectedParam === 'RH' && (
                 <YAxis
-                  yAxisId={selectedParam === 'RH' ? 'left' : 'right-rh'}
-                  orientation={selectedParam === 'RH' ? 'left' : 'right'}
+                  yAxisId="left"
                   stroke="#2DD4BF"
                   fontSize={11}
                   domain={[0, 100]}
-                  tickFormatter={(v) => `${v}%`}
+                  tickFormatter={(v) => `${Number(v).toFixed(0)}%`}
                 />
               )}
 
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'rgba(3, 7, 18, 0.95)',
-                  borderColor: 'rgba(56, 189, 248, 0.4)',
-                  borderRadius: '12px',
-                  boxShadow: '0 15px 35px rgba(0,0,0,0.8), 0 0 15px rgba(56, 189, 248, 0.2)',
-                  fontSize: '12px',
-                  fontFamily: 'JetBrains Mono, monospace'
-                }}
-              />
+              {/* Right Y Axis: Pressure (in ALL mode) */}
+              {selectedParam === 'ALL' && (
+                <YAxis
+                  yAxisId="right-pres"
+                  orientation="right"
+                  stroke="#818CF8"
+                  fontSize={11}
+                  domain={['auto', 'auto']}
+                  tickFormatter={(v) => `${Number(v).toFixed(1)} hPa`}
+                />
+              )}
+
+              {/* Right Y Axis: RH (in ALL mode, scaled 0-100%) */}
+              {selectedParam === 'ALL' && (
+                <YAxis
+                  yAxisId="right-rh"
+                  orientation="right"
+                  stroke="#2DD4BF"
+                  fontSize={10}
+                  domain={[0, 100]}
+                  hide={true}
+                />
+              )}
+
+              <Tooltip content={<CustomTelemetryTooltip />} />
               <Legend verticalAlign="top" height={32} iconType="circle" />
 
-              {/* Temperature Area Glow */}
+              {/* Area Glow fills for dedicated single-channel views */}
               {selectedParam === 'TEMP' && (
                 <Area
                   yAxisId="left"
                   type="monotone"
                   dataKey="temperature"
                   fill="url(#tempGlow)"
+                  stroke="none"
+                  legendType="none"
+                />
+              )}
+              {selectedParam === 'PRES' && (
+                <Area
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey="pressure"
+                  fill="url(#presGlow)"
+                  stroke="none"
+                  legendType="none"
+                />
+              )}
+              {selectedParam === 'RH' && (
+                <Area
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey="humidity"
+                  fill="url(#rhGlow)"
                   stroke="none"
                   legendType="none"
                 />
@@ -349,7 +469,7 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
               {/* 5. Humidity Curve */}
               {(selectedParam === 'ALL' || selectedParam === 'RH') && (
                 <Line
-                  yAxisId={selectedParam === 'RH' ? 'left' : (selectedParam === 'ALL' ? 'right-rh' : 'left')}
+                  yAxisId={selectedParam === 'RH' ? 'left' : 'right-rh'}
                   type="monotone"
                   dataKey="humidity"
                   name="Relative Humidity (%)"

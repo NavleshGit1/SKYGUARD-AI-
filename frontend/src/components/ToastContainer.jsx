@@ -2,7 +2,7 @@ import React from 'react';
 import { AlertCircle, X, ArrowRight } from 'lucide-react';
 import { sounds } from '../utils/audio';
 
-export default function ToastContainer({ toasts = [], onDismiss, onInspect }) {
+export default function ToastContainer({ toasts = [], onDismiss, onInspect, onSelectAlert }) {
   if (!toasts || toasts.length === 0) return null;
 
   return (
@@ -49,7 +49,8 @@ export default function ToastContainer({ toasts = [], onDismiss, onInspect }) {
             <button
               onClick={() => {
                 sounds.playClick();
-                if (onInspect) onInspect(t);
+                const inspectFn = onInspect || onSelectAlert;
+                if (inspectFn) inspectFn(t);
                 onDismiss(t.id || t.event_id);
               }}
               className="flex items-center gap-1 font-semibold text-sky-400 hover:text-sky-300 transition-colors"

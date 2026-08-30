@@ -341,9 +341,17 @@ async def lifespan(app: FastAPI):
         logger.info("[Database] Schema tables verified & connected.")
         _seed_db_if_empty()
         
-        # Preload station cache
+        # Preload station cache & auto-seed if empty
         db = SessionLocal()
         try:
+            st_count = db.query(WeatherStation).count()
+            if st_count == 0:
+                logger.info("[Database] Empty database detected. Auto-seeding weather stations...")
+                from scripts.init_db import initialize_database
+                from scripts.seed_model_registry import seed_registry
+                initialize_database()
+                seed_registry()
+
             stations = db.query(WeatherStation).all()
             for st in stations:
                 station_cache.set(st.station_id, {
@@ -366,6 +374,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"[Database] Startup connection note: {e}")
         
+    # Start Render 24/7 Keep-Alive Self-Pinger & Autonomous Telemetry Stream
+    import asyncio
+    from backend.app.services.keep_alive import start_keep_alive_loop
+    from backend.app.services.background_simulator import start_background_simulator_loop
+    
+    keep_alive_task = asyncio.create_task(start_keep_alive_loop())
+    simulator_task = asyncio.create_task(start_background_simulator_loop())
+
     yield
     
     # Shutdown

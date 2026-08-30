@@ -24,7 +24,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       localStorage.setItem('skyguard_token', res.data.access_token);
-      onLoginSuccess(res.data.user);
+      onLoginSuccess(res.data.user, res.data.access_token);
       onClose();
     } catch (err) {
       setError(err.response?.data?.detail || 'Invalid email or password.');

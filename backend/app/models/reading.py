@@ -6,7 +6,7 @@ class SensorReading(Base):
     __tablename__ = "sensor_readings"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    timestamp = Column(DateTime, primary_key=True, nullable=False, index=True)
+    timestamp = Column(DateTime, nullable=False, index=True)
     station_id = Column(String(50), nullable=False, index=True)
     
     # Observed Raw

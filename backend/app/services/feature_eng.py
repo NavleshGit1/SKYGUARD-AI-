@@ -196,8 +196,12 @@ class MeteorologicalFeatureEngine:
         })
 
         t_zscore = round((t_val - normals["t_mean"]) / max(0.1, normals["t_std"]), 2)
-        p_zscore = round((p_val - normals["p_mean"]) / max(0.1, normals["p_std"]), 2)
+        # FIX: Climate normals store Sea Level Pressure; compare MSLP vs MSLP normal.
+        # Using raw station surface pressure (~975 hPa for Jaipur at 431m) against
+        # MSLP normals (~1001 hPa) produces a permanent -9.5 sigma false outlier.
+        p_zscore = round((sea_level_pressure - normals["p_mean"]) / max(0.1, normals["p_std"]), 2)
         rh_zscore = round((rh_val - normals["rh_mean"]) / max(0.1, normals["rh_std"]), 2)
+
 
         # 5. Missingness Tracker
         gap_duration = dt_sec if last_r else 0.0
