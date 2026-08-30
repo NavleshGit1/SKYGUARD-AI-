@@ -14,7 +14,6 @@ import ModelBenchmarkScreen from './components/ModelBenchmarkScreen';
 import AdminSettings from './components/AdminSettings';
 import { LanguageProvider, LanguageToggle } from './i18n';
 import { sounds } from './utils/audio';
-import { getWebSocketUrl } from './utils/api';
 
 export default function App() {
   const [stations, setStations] = useState([]);

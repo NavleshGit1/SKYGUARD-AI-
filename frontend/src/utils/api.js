@@ -6,6 +6,11 @@ import axios from 'axios';
 const RAW_API_URL = import.meta.env.VITE_API_URL || '';
 export const API_BASE_URL = RAW_API_URL.replace(/\/+$/, '');
 
+export const apiUrl = (path = '') => {
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${API_BASE_URL}${cleanPath}`;
+};
+
 // 2. Resolve WebSocket URL
 export const getWebSocketUrl = () => {
   const customWs = import.meta.env.VITE_WS_URL;
