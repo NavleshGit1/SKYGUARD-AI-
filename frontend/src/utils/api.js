@@ -1,9 +1,8 @@
 import axios from 'axios';
 
-// 1. Resolve API Base URL
 // In development: Vite proxies /api to http://localhost:8000
-// In production (Vercel): VITE_API_URL should point to Render (e.g., https://skyguard-api.onrender.com)
-const RAW_API_URL = import.meta.env.VITE_API_URL || '';
+// In production (Vercel): VITE_API_URL or defaults to deployed Render backend
+const RAW_API_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? '' : 'https://skyguard-ai-mvlx.onrender.com');
 export const API_BASE_URL = RAW_API_URL.replace(/\/+$/, '');
 
 export const apiUrl = (path = '') => {

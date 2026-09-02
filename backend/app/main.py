@@ -428,6 +428,8 @@ app.add_middleware(
 app.include_router(api_v1_router, prefix=settings.API_V1_STR)
 
 
+@app.get("/", tags=["Observability & Metrics"])
+@app.get("/health", tags=["Observability & Metrics"])
 @app.get("/api/v1/health", tags=["Observability & Metrics"], summary="High-Precision System Health Check")
 async def health_check():
     """

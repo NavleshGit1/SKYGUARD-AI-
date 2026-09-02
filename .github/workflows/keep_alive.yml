@@ -21,6 +21,6 @@ jobs:
       - name: Ping Render Backend
         env:
           # Set RENDER_BACKEND_URL in GitHub Repository Secrets or replace with your live URL below
-          RENDER_BACKEND_URL: ${{ secrets.RENDER_BACKEND_URL || 'https://skyguard-backend.onrender.com' }}
+          RENDER_BACKEND_URL: ${{ secrets.RENDER_BACKEND_URL || 'https://skyguard-ai-mvlx.onrender.com' }}
         run: |
           python scripts/keep_alive.py --url "$RENDER_BACKEND_URL" --once
