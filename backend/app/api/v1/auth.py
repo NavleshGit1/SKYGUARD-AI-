@@ -15,6 +15,7 @@ from backend.app.core.cache import is_token_revoked, revoke_token_jti
 
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login", auto_error=False)
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -54,6 +55,21 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     if user is None or not user.is_active:
         raise credentials_exception
     return user
+
+def get_current_user_optional(token: str = Depends(oauth2_scheme_optional), db: Session = Depends(get_db)) -> Any:
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        email: str = payload.get("sub")
+        if not email:
+            return None
+        jti: str = payload.get("jti")
+        if jti and is_token_revoked(jti):
+            return None
+        return db.query(User).filter(User.email == email).first()
+    except Exception:
+        return None
 
 @router.post("/auth/login", response_model=TokenResponse)
 @limiter.limit("5/minute")

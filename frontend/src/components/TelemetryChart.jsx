@@ -108,32 +108,34 @@ const CustomTelemetryTooltip = ({ active, payload }) => {
 export default function TelemetryChart({ stations = [], selectedStation, onSelectStation, readings = [] }) {
   const [selectedParam, setSelectedParam] = useState('ALL'); // ALL, TEMP, PRES, RH
 
-  // Format data for recharts
-  const chartData = readings.map((r) => {
-    const rawTemp = r.temperature_c;
-    const rawPres = r.pressure_hpa;
-    const rawRh = r.humidity_pct;
+  // Format data for recharts — strictly sorted chronologically (oldest -> newest)
+  const chartData = [...readings]
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+    .map((r) => {
+      const rawTemp = r.temperature_c != null ? Number(r.temperature_c) : null;
+      const rawPres = r.pressure_hpa != null ? Number(r.pressure_hpa) : null;
+      const rawRh = r.humidity_pct != null ? Number(r.humidity_pct) : null;
 
-    // Continuous AE baseline across all 3 channels:
-    const impTemp = (r.imputed_temperature_c != null) ? r.imputed_temperature_c : rawTemp;
-    const impPres = (r.imputed_pressure_hpa != null) ? r.imputed_pressure_hpa : rawPres;
-    const impRh = (r.imputed_humidity_pct != null) ? r.imputed_humidity_pct : rawRh;
+      // Continuous AE baseline across all 3 channels:
+      const impTemp = (r.imputed_temperature_c != null) ? Number(r.imputed_temperature_c) : rawTemp;
+      const impPres = (r.imputed_pressure_hpa != null) ? Number(r.imputed_pressure_hpa) : rawPres;
+      const impRh = (r.imputed_humidity_pct != null) ? Number(r.imputed_humidity_pct) : rawRh;
 
-    return {
-      time: new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-      temperature: rawTemp,
-      imputed_temperature: impTemp,
-      pressure: rawPres,
-      imputed_pressure: impPres,
-      humidity: rawRh,
-      imputed_humidity: impRh,
-      dew_point: r.dew_point_c,
-      sea_level_pressure: r.sea_level_pressure_hpa,
-      is_anomaly: r.is_anomaly,
-      severity: r.severity_score,
-      imputed: r.is_imputed
-    };
-  }).reverse();
+      return {
+        time: new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        temperature: rawTemp,
+        imputed_temperature: impTemp,
+        pressure: rawPres,
+        imputed_pressure: impPres,
+        humidity: rawRh,
+        imputed_humidity: impRh,
+        dew_point: r.dew_point_c != null ? Number(r.dew_point_c) : null,
+        sea_level_pressure: r.sea_level_pressure_hpa != null ? Number(r.sea_level_pressure_hpa) : null,
+        is_anomaly: r.is_anomaly,
+        severity: r.severity_score,
+        imputed: r.is_imputed
+      };
+    });
 
   // Compute live min/max summary based on selected parameter
   let activeValues = [];
@@ -338,14 +340,14 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
                 />
               )}
 
-              {/* Dedicated Left Y Axis when viewing Humidity alone */}
+              {/* Dedicated Left Y Axis when viewing Humidity alone — dynamic bounds for clear waveforms */}
               {selectedParam === 'RH' && (
                 <YAxis
                   yAxisId="left"
                   stroke="#2DD4BF"
                   fontSize={11}
-                  domain={[0, 100]}
-                  tickFormatter={(v) => `${Number(v).toFixed(0)}%`}
+                  domain={['dataMin - 3', 'dataMax + 3']}
+                  tickFormatter={(v) => `${Number(v).toFixed(1)}%`}
                 />
               )}
 
@@ -361,14 +363,14 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
                 />
               )}
 
-              {/* Right Y Axis: RH (in ALL mode, scaled 0-100%) */}
+              {/* Right Y Axis: RH (in ALL mode, dynamic range) */}
               {selectedParam === 'ALL' && (
                 <YAxis
                   yAxisId="right-rh"
                   orientation="right"
                   stroke="#2DD4BF"
                   fontSize={10}
-                  domain={[0, 100]}
+                  domain={['dataMin - 5', 'dataMax + 5']}
                   hide={true}
                 />
               )}
