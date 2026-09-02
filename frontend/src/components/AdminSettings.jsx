@@ -201,6 +201,8 @@ function AuditTrailViewer({ token }) {
 }
 
 export default function AdminSettings({ token: propToken, onRefreshData }) {
+  const activeToken = propToken || (typeof window !== 'undefined' ? localStorage.getItem('skyguard_token') : null);
+
   const [weights, setWeights] = useState({
     w_rule: 0.10,
     w_flatline: 0.10,
@@ -216,6 +218,33 @@ export default function AdminSettings({ token: propToken, onRefreshData }) {
   const [toastMsg, setToastMsg] = useState(null);
   const [retrainingModel, setRetrainingModel] = useState(null);
 
+  // Load live thresholds on mount
+  useEffect(() => {
+    const fetchCurrentThresholds = async () => {
+      try {
+        const resp = await fetch(apiUrl('/api/v1/admin/thresholds'), {
+          headers: activeToken ? { Authorization: `Bearer ${activeToken}` } : {}
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          const t = data.thresholds || {};
+          setWeights((prev) => ({
+            ...prev,
+            w_iforest: t.iforest_weight != null ? t.iforest_weight : prev.w_iforest,
+            w_autoencoder: t.autoencoder_weight != null ? t.autoencoder_weight : prev.w_autoencoder,
+            w_drift: t.drift_weight != null ? t.drift_weight : prev.w_drift,
+            w_spatial: t.spatial_weight != null ? t.spatial_weight : prev.w_spatial,
+            threshold_severity: t.fusion_threshold != null ? t.fusion_threshold : prev.threshold_severity,
+            cooldown_seconds: t.alert_cooldown_seconds != null ? t.alert_cooldown_seconds : prev.cooldown_seconds,
+          }));
+        }
+      } catch (e) {
+        console.error('Failed to load initial thresholds:', e);
+      }
+    };
+    fetchCurrentThresholds();
+  }, [activeToken]);
+
   const handleWeightChange = (key, val) => {
     setWeights((prev) => ({ ...prev, [key]: val }));
   };
@@ -223,7 +252,6 @@ export default function AdminSettings({ token: propToken, onRefreshData }) {
   const handleSave = async () => {
     sounds.playClick();
     setSaving(true);
-    const activeToken = propToken || localStorage.getItem('skyguard_token');
     try {
       const resp = await fetch(apiUrl('/api/v1/admin/thresholds'), {
         method: 'POST',
@@ -386,7 +414,7 @@ export default function AdminSettings({ token: propToken, onRefreshData }) {
       </div>
 
       {/* Audit Trail Ledger */}
-      <AuditTrailViewer token={token} />
+      <AuditTrailViewer token={activeToken} />
     </div>
   );
 }

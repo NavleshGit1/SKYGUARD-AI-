@@ -89,14 +89,10 @@ export default function App() {
 
   useEffect(() => {
     fetchInitialData();
-    // Safety poll every 8s
     const pollInterval = setInterval(() => {
       api.get('/api/v1/stations').then(res => setStations(res.data)).catch(() => {});
       api.get('/api/v1/anomalies?limit=50').then(res => setAnomalies(res.data)).catch(() => {});
-      if (selectedStationRef.current) {
-        fetchStationTelemetry(selectedStationRef.current.station_id);
-      }
-    }, 8000);
+    }, 10000);
     return () => clearInterval(pollInterval);
   }, []);
 
