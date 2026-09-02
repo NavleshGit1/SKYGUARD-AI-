@@ -120,9 +120,17 @@ class ValueImputer:
         p_imputed = max(850.0, min(1060.0, p_imputed))
         rh_imputed = max(0.0, min(100.0, rh_imputed))
 
+        is_any_corrupted = (t_is_corrupted or p_is_corrupted or rh_is_corrupted)
+
+        # Return imputed physical values ONLY for the channel(s) that were corrupted
         return {
-            "temperature_c": t_imputed,
-            "pressure_hpa": p_imputed,
-            "humidity_pct": rh_imputed,
-            "is_imputed": True
+            "temperature_c": t_imputed if t_is_corrupted else (t_imputed if not is_any_corrupted else None),
+            "pressure_hpa": p_imputed if p_is_corrupted else None,
+            "humidity_pct": rh_imputed if rh_is_corrupted else None,
+            "is_imputed": is_any_corrupted,
+            "corrupted_channels": {
+                "temperature": t_is_corrupted,
+                "pressure": p_is_corrupted,
+                "humidity": rh_is_corrupted
+            }
         }

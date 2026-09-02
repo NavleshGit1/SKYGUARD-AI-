@@ -58,6 +58,7 @@ class PhysicalRuleDetector:
     def evaluate(cls, features: Dict[str, Any]) -> Tuple[float, Optional[str]]:
         raw = features.get("raw", {})
         physics = features.get("physics_features", {})
+        deriv = features.get("derivatives", {})
         
         # 1. Check Hard Physical Bounds
         for param, (low, high) in cls.BOUNDS.items():
@@ -68,6 +69,17 @@ class PhysicalRuleDetector:
         # 2. Check Thermodynamic Invariant Violation (Dew Point > Ambient Temperature)
         if physics.get("is_dew_violation", False):
             return 1.0, f"THERMODYNAMIC_INVARIANT_VIOLATION: Dew Point ({physics.get('dew_point_c')}°C) > Ambient Temp ({raw.get('temperature_c')}°C)"
+
+        # 3. Check WMO Physical Rate of Change limits
+        dt = abs(deriv.get("dT_dt", 0.0))
+        dp = abs(deriv.get("dP_dt", 0.0))
+        drh = abs(deriv.get("dRH_dt", 0.0))
+        if dt > 2.5:
+            return 1.0, f"PHYSICAL_RATE_OF_CHANGE_EXCEEDED: dT/dt = {dt:.2f}°C/min (limit: 2.5°C/min)"
+        if dp > 3.0:
+            return 1.0, f"PHYSICAL_RATE_OF_CHANGE_EXCEEDED: dP/dt = {dp:.2f} hPa/min (limit: 3.0 hPa/min)"
+        if drh > 12.0:
+            return 1.0, f"PHYSICAL_RATE_OF_CHANGE_EXCEEDED: dRH/dt = {drh:.2f}%/min (limit: 12.0%/min)"
 
         return 0.0, None
 

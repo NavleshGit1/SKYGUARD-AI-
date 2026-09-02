@@ -23,20 +23,21 @@ import {
 } from 'lucide-react';
 import { sounds } from '../utils/audio';
 
-// Crisp solid red dot ONLY rendered on injected fault / anomaly readings
+// Crisp solid red dot rendered on injected fault / anomaly readings across all stations
 const renderInjectedFaultDot = (props) => {
   const { cx, cy, payload } = props;
-  if (!cx || !cy || !payload) return null;
-  if (payload.is_anomaly) {
+  if (cx == null || cy == null || !payload) return null;
+  const isAnom = Boolean(payload.is_anomaly || (payload.severity && payload.severity >= 0.4) || payload.imputed);
+  if (isAnom) {
     return (
       <circle
         key={`fault-dot-${cx}-${cy}`}
         cx={cx}
         cy={cy}
-        r={6}
+        r={6.5}
         fill="#EF4444"
         stroke="#FFFFFF"
-        strokeWidth={2}
+        strokeWidth={2.5}
       />
     );
   }
@@ -47,6 +48,10 @@ const CustomTelemetryTooltip = ({ active, payload }) => {
   if (!active || !payload || !payload.length) return null;
   const data = payload[0]?.payload;
   if (!data) return null;
+
+  const isTempChanged = data.imputed_temperature != null && data.temperature != null && Math.abs(data.imputed_temperature - data.temperature) >= 0.4;
+  const isPresChanged = data.imputed_pressure != null && data.pressure != null && Math.abs(data.imputed_pressure - data.pressure) >= 0.8;
+  const isRhChanged = data.imputed_humidity != null && data.humidity != null && Math.abs(data.imputed_humidity - data.humidity) >= 1.5;
 
   return (
     <div className="p-3 bg-slate-950/95 border border-sky-500/40 rounded-xl shadow-2xl text-xs font-mono min-w-[240px]">
@@ -71,8 +76,9 @@ const CustomTelemetryTooltip = ({ active, payload }) => {
           <span className="text-white font-bold">{data.temperature != null ? `${Number(data.temperature).toFixed(1)}°C` : '—'}</span>
         </div>
 
-        {data.imputed_temperature != null && (
-          <div className="flex items-center justify-between text-emerald-400 text-[11px]">
+        {/* Only show AE version if Temperature was actually changed / corrupted */}
+        {isTempChanged && (
+          <div className="flex items-center justify-between text-emerald-400 text-[11px] bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-500/20">
             <span className="font-sans flex items-center gap-1.5">
               <span className="w-2 h-0.5 bg-emerald-400 border-t border-dashed" /> AE Imputed Temp:
             </span>
@@ -87,8 +93,9 @@ const CustomTelemetryTooltip = ({ active, payload }) => {
           <span className="text-white font-bold">{data.pressure != null ? `${Number(data.pressure).toFixed(1)} hPa` : '—'}</span>
         </div>
 
-        {data.imputed_pressure != null && (
-          <div className="flex items-center justify-between text-emerald-400 text-[11px]">
+        {/* Only show AE version if Pressure was actually changed / corrupted */}
+        {isPresChanged && (
+          <div className="flex items-center justify-between text-emerald-400 text-[11px] bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-500/20">
             <span className="font-sans flex items-center gap-1.5">
               <span className="w-2 h-0.5 bg-emerald-400 border-t border-dashed" /> AE Imputed Pres:
             </span>
@@ -103,8 +110,9 @@ const CustomTelemetryTooltip = ({ active, payload }) => {
           <span className="text-white font-bold">{data.humidity != null ? `${Number(data.humidity).toFixed(1)}%` : '—'}</span>
         </div>
 
-        {data.imputed_humidity != null && (
-          <div className="flex items-center justify-between text-emerald-400 text-[11px]">
+        {/* Only show AE version if Humidity was actually changed / corrupted */}
+        {isRhChanged && (
+          <div className="flex items-center justify-between text-emerald-400 text-[11px] bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-500/20">
             <span className="font-sans flex items-center gap-1.5">
               <span className="w-2 h-0.5 bg-emerald-400 border-t border-dashed" /> AE Imputed RH:
             </span>
@@ -465,7 +473,7 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
                   name="Pressure (hPa)"
                   stroke="#818CF8"
                   strokeWidth={2}
-                  dot={selectedParam === 'PRES' ? renderInjectedFaultDot : false}
+                  dot={renderInjectedFaultDot}
                   activeDot={{ r: 5, fill: '#818CF8', stroke: '#FFF', strokeWidth: 2 }}
                 />
               )}
@@ -494,7 +502,7 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
                   name="Relative Humidity (%)"
                   stroke="#2DD4BF"
                   strokeWidth={2}
-                  dot={selectedParam === 'RH' ? renderInjectedFaultDot : false}
+                  dot={renderInjectedFaultDot}
                   activeDot={{ r: 5, fill: '#2DD4BF', stroke: '#FFF', strokeWidth: 2 }}
                 />
               )}
