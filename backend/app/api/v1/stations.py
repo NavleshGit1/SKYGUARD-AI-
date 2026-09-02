@@ -46,12 +46,18 @@ def get_all_stations(db: Session = Depends(get_db)):
             # High-fidelity baseline fallback (ensures zero blank values on initial cold boot)
             st_key = st.station_id if st.station_id in STATIONS_CONFIG else "AWS-DEL-01"
             syn = _generate_synthetic_reading(st_key, now)
+            t_c = syn["temperature_c"]
+            p_hpa = syn["pressure_hpa"]
+            h_pct = syn["humidity_pct"]
+            gamma = (17.27 * t_c) / (237.7 + t_c) + math.log(max(1.0, min(100.0, h_pct)) / 100.0)
+            td = round((237.7 * gamma) / (17.27 - gamma), 2)
+            p_mslp = round(p_hpa * ((1 - (0.0065 * st.altitude_m) / (t_c + 273.15 + 0.0065 * st.altitude_m)) ** -5.257), 2)
             latest_dict = {
-                "temperature_c": syn["temperature_c"],
-                "pressure_hpa": syn["pressure_hpa"],
-                "humidity_pct": syn["humidity_pct"],
-                "dew_point_c": round(syn["temperature_c"] - ((100 - syn["humidity_pct"]) / 5), 1),
-                "sea_level_pressure_hpa": round(syn["pressure_hpa"] + (st.altitude_m / 8.3), 1),
+                "temperature_c": t_c,
+                "pressure_hpa": p_hpa,
+                "humidity_pct": h_pct,
+                "dew_point_c": td,
+                "sea_level_pressure_hpa": p_mslp,
                 "is_anomaly": False,
                 "timestamp": now.isoformat()
             }
@@ -138,14 +144,20 @@ def get_station_details(
         for i in range(25, 0, -1):
             pt = now - timedelta(minutes=i * 3)
             syn = _generate_synthetic_reading(st_key, pt)
+            t_c = syn["temperature_c"]
+            p_hpa = syn["pressure_hpa"]
+            h_pct = syn["humidity_pct"]
+            gamma = (17.27 * t_c) / (237.7 + t_c) + math.log(max(1.0, min(100.0, h_pct)) / 100.0)
+            td = round((237.7 * gamma) / (17.27 - gamma), 2)
+            p_mslp = round(p_hpa * ((1 - (0.0065 * station.altitude_m) / (t_c + 273.15 + 0.0065 * station.altitude_m)) ** -5.257), 2)
             recent_list.append({
                 "id": i,
                 "timestamp": pt.isoformat(),
-                "temperature_c": syn["temperature_c"],
-                "pressure_hpa": syn["pressure_hpa"],
-                "humidity_pct": syn["humidity_pct"],
-                "dew_point_c": round(syn["temperature_c"] - ((100 - syn["humidity_pct"]) / 5), 1),
-                "sea_level_pressure_hpa": round(syn["pressure_hpa"] + (station.altitude_m / 8.3), 1),
+                "temperature_c": t_c,
+                "pressure_hpa": p_hpa,
+                "humidity_pct": h_pct,
+                "dew_point_c": td,
+                "sea_level_pressure_hpa": p_mslp,
                 "is_anomaly": False,
                 "severity_score": 0.0,
                 "is_imputed": False,
