@@ -176,13 +176,16 @@ class MeteorologicalFeatureEngine:
             if gap > 0:
                 dt_sec = gap
 
-        dT_dt = round((t_val - (last_r["temperature_c"] if last_r else t_val)) / (dt_sec / 60.0), 3)
-        dP_dt = round((p_val - (last_r["pressure_hpa"] if last_r else p_val)) / (dt_sec / 60.0), 3)
-        dRH_dt = round((rh_val - (last_r["humidity_pct"] if last_r else rh_val)) / (dt_sec / 60.0), 3)
+        # Clamped effective interval (min 1 min) to prevent derivative explosion during high-frequency simulator ticks
+        effective_dt_min = max(1.0, dt_sec / 60.0)
+
+        dT_dt = round((t_val - (last_r["temperature_c"] if last_r else t_val)) / effective_dt_min, 3)
+        dP_dt = round((p_val - (last_r["pressure_hpa"] if last_r else p_val)) / effective_dt_min, 3)
+        dRH_dt = round((rh_val - (last_r["humidity_pct"] if last_r else rh_val)) / effective_dt_min, 3)
 
         # 2nd derivative (acceleration)
         prev_dT_dt = self.last_derivatives[st_id].get("dT_dt", 0.0)
-        d2T_dt2 = round((dT_dt - prev_dT_dt) / (dt_sec / 60.0), 4)
+        d2T_dt2 = round((dT_dt - prev_dT_dt) / effective_dt_min, 4)
 
         self.last_derivatives[st_id] = {"dT_dt": dT_dt, "dP_dt": dP_dt, "dRH_dt": dRH_dt}
         self.last_readings[st_id] = reading
