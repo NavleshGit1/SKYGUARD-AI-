@@ -24,22 +24,16 @@ import {
 import { sounds } from '../utils/audio';
 
 // Channel-specific crisp solid red dots rendered ONLY on the specific corrupted parameter line
-const createFaultDotRenderer = (dataKey, threshold) => (props) => {
+const renderTempFaultDot = (props) => {
   const { cx, cy, payload } = props;
   if (!cx || !cy || !payload) return null;
-  const rawVal = payload[dataKey];
-  const impVal = payload[`imputed_${dataKey}`];
-  
-  // Render red marker only if reading is anomalous AND this specific parameter deviated from AE clean manifold
-  const isCorrupted = payload.is_anomaly && impVal != null && rawVal != null && Math.abs(rawVal - impVal) >= threshold;
-  
-  if (isCorrupted) {
+  if (payload.is_temp_fault) {
     return (
       <circle
-        key={`fault-${dataKey}-${cx}-${cy}`}
+        key={`fault-temp-${cx}-${cy}`}
         cx={cx}
         cy={cy}
-        r={5.5}
+        r={6}
         fill="#EF4444"
         stroke="#FFFFFF"
         strokeWidth={2}
@@ -49,9 +43,43 @@ const createFaultDotRenderer = (dataKey, threshold) => (props) => {
   return null;
 };
 
-const renderTempFaultDot = createFaultDotRenderer('temperature', 0.8);
-const renderPresFaultDot = createFaultDotRenderer('pressure', 2.0);
-const renderRhFaultDot = createFaultDotRenderer('humidity', 3.5);
+const renderPresFaultDot = (props) => {
+  const { cx, cy, payload } = props;
+  if (!cx || !cy || !payload) return null;
+  if (payload.is_pres_fault) {
+    return (
+      <circle
+        key={`fault-pres-${cx}-${cy}`}
+        cx={cx}
+        cy={cy}
+        r={6}
+        fill="#EF4444"
+        stroke="#FFFFFF"
+        strokeWidth={2}
+      />
+    );
+  }
+  return null;
+};
+
+const renderRhFaultDot = (props) => {
+  const { cx, cy, payload } = props;
+  if (!cx || !cy || !payload) return null;
+  if (payload.is_rh_fault) {
+    return (
+      <circle
+        key={`fault-rh-${cx}-${cy}`}
+        cx={cx}
+        cy={cy}
+        r={6}
+        fill="#EF4444"
+        stroke="#FFFFFF"
+        strokeWidth={2}
+      />
+    );
+  }
+  return null;
+};
 
 const CustomTelemetryTooltip = ({ active, payload }) => {
   if (!active || !payload || !payload.length) return null;
@@ -63,11 +91,11 @@ const CustomTelemetryTooltip = ({ active, payload }) => {
       <div className="flex items-center justify-between border-b border-slate-800 pb-1.5 mb-2">
         <span className="text-slate-400 font-sans font-semibold">🕒 {data.time}</span>
         {data.is_anomaly ? (
-          <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400 text-[10px] font-bold border border-rose-500/40 animate-pulse">
-            ⚠️ ANOMALY ({data.severity ? Math.round(data.severity * 100) : 85}%)
+          <span className="text-rose-400 bg-rose-950/80 border border-rose-500/40 px-2 py-0.5 rounded-full text-[10px] font-bold">
+            ⚠️ ANOMALY ({data.severity ? (data.severity * 100).toFixed(0) : '90'}%)
           </span>
         ) : (
-          <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold border border-emerald-500/40">
+          <span className="text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded-full text-[10px] font-semibold">
             ✓ NOMINAL
           </span>
         )}
@@ -75,33 +103,48 @@ const CustomTelemetryTooltip = ({ active, payload }) => {
 
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <span className="text-sky-400 font-sans flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-sky-400" /> Temperature:
+          <span className="text-sky-400 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-sky-400"></span>
+            Temperature:
           </span>
-          <span className="text-white font-bold">{data.temperature != null ? `${Number(data.temperature).toFixed(1)}°C` : '—'}</span>
-        </div>
-
-        {data.imputed_temperature != null && data.imputed_temperature !== data.temperature && (
-          <div className="flex items-center justify-between text-emerald-400 text-[11px]">
-            <span className="font-sans flex items-center gap-1.5">
-              <span className="w-2 h-0.5 bg-emerald-400 border-t border-dashed" /> AE Imputed:
-            </span>
-            <span className="font-bold">{Number(data.imputed_temperature).toFixed(1)}°C</span>
-          </div>
-        )}
-
-        <div className="flex items-center justify-between">
-          <span className="text-indigo-400 font-sans flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-indigo-400" /> Pressure:
+          <span className="font-bold text-white">
+            {data.temperature != null ? `${Number(data.temperature).toFixed(1)}°C` : '—'}
+            {data.imputed_temperature != null && data.is_temp_fault && (
+              <span className="text-emerald-400 text-[10px] ml-1.5 font-normal">
+                (AE: {Number(data.imputed_temperature).toFixed(1)}°C)
+              </span>
+            )}
           </span>
-          <span className="text-white font-bold">{data.pressure != null ? `${Number(data.pressure).toFixed(1)} hPa` : '—'}</span>
         </div>
 
         <div className="flex items-center justify-between">
-          <span className="text-teal-400 font-sans flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-teal-400" /> Humidity:
+          <span className="text-indigo-400 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-indigo-400"></span>
+            Pressure:
           </span>
-          <span className="text-white font-bold">{data.humidity != null ? `${Number(data.humidity).toFixed(1)}%` : '—'}</span>
+          <span className="font-bold text-white">
+            {data.pressure != null ? `${Number(data.pressure).toFixed(1)} hPa` : '—'}
+            {data.imputed_pressure != null && data.is_pres_fault && (
+              <span className="text-emerald-400 text-[10px] ml-1.5 font-normal">
+                (AE: {Number(data.imputed_pressure).toFixed(1)})
+              </span>
+            )}
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <span className="text-teal-400 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-teal-400"></span>
+            Humidity:
+          </span>
+          <span className="font-bold text-white">
+            {data.humidity != null ? `${Number(data.humidity).toFixed(1)}%` : '—'}
+            {data.imputed_humidity != null && data.is_rh_fault && (
+              <span className="text-emerald-400 text-[10px] ml-1.5 font-normal">
+                (AE: {Number(data.imputed_humidity).toFixed(1)}%)
+              </span>
+            )}
+          </span>
         </div>
 
         {data.dew_point != null && (
@@ -116,9 +159,8 @@ const CustomTelemetryTooltip = ({ active, payload }) => {
 };
 
 export default function TelemetryChart({ stations = [], selectedStation, onSelectStation, readings = [] }) {
-  const [selectedParam, setSelectedParam] = useState('ALL'); // ALL, TEMP, PRES, RH
+  const [selectedParam, setSelectedParam] = useState('ALL');
 
-  // Format data for recharts — strictly sorted chronologically (oldest -> newest)
   const chartData = [...readings]
     .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
     .map((r) => {
@@ -126,19 +168,35 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
       const rawPres = r.pressure_hpa != null ? Number(r.pressure_hpa) : null;
       const rawRh = r.humidity_pct != null ? Number(r.humidity_pct) : null;
 
-      // Continuous AE baseline across all 3 channels:
-      const impTemp = (r.imputed_temperature_c != null) ? Number(r.imputed_temperature_c) : rawTemp;
-      const impPres = (r.imputed_pressure_hpa != null) ? Number(r.imputed_pressure_hpa) : rawPres;
-      const impRh = (r.imputed_humidity_pct != null) ? Number(r.imputed_humidity_pct) : rawRh;
+      const impTempRaw = r.imputed_temperature_c != null ? Number(r.imputed_temperature_c) : null;
+      const impPresRaw = r.imputed_pressure_hpa != null ? Number(r.imputed_pressure_hpa) : null;
+      const impRhRaw = r.imputed_humidity_pct != null ? Number(r.imputed_humidity_pct) : null;
+
+      const tempDiff = (impTempRaw != null && rawTemp != null) ? Math.abs(rawTemp - impTempRaw) : 0;
+      const presDiff = (impPresRaw != null && rawPres != null) ? Math.abs(rawPres - impPresRaw) : 0;
+      const rhDiff = (impRhRaw != null && rawRh != null) ? Math.abs(rawRh - impRhRaw) : 0;
+
+      // Detect which channel is faulted
+      const isTempFault = Boolean(r.is_anomaly && (tempDiff >= 0.8 || (tempDiff >= presDiff && tempDiff >= rhDiff && tempDiff > 0.3)));
+      const isPresFault = Boolean(r.is_anomaly && (presDiff >= 1.2 || (presDiff >= tempDiff && presDiff >= rhDiff && presDiff > 0.4)));
+      const isRhFault = Boolean(r.is_anomaly && (rhDiff >= 2.5 || (rhDiff >= tempDiff && rhDiff >= presDiff && rhDiff > 0.5)));
+
+      // Imputed lines only show when the channel is faulted (prevents overlapping dashed line on normal weather):
+      const impTemp = isTempFault ? impTempRaw : null;
+      const impPres = isPresFault ? impPresRaw : null;
+      const impRh = isRhFault ? impRhRaw : null;
 
       return {
         time: new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
         temperature: rawTemp,
         imputed_temperature: impTemp,
+        is_temp_fault: isTempFault,
         pressure: rawPres,
         imputed_pressure: impPres,
+        is_pres_fault: isPresFault,
         humidity: rawRh,
         imputed_humidity: impRh,
+        is_rh_fault: isRhFault,
         dew_point: r.dew_point_c != null ? Number(r.dew_point_c) : null,
         sea_level_pressure: r.sea_level_pressure_hpa != null ? Number(r.sea_level_pressure_hpa) : null,
         is_anomaly: r.is_anomaly,
@@ -147,7 +205,6 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
       };
     });
 
-  // Compute live min/max summary based on selected parameter
   let activeValues = [];
   let unit = '°C';
   let rangeLabel = 'Observed Temp:';
