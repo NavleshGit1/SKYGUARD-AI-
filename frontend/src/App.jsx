@@ -347,9 +347,23 @@ export default function App() {
               <SimulatorPanel
                 stations={stations}
                 onTabChange={setActiveTab}
-                onInjectionSuccess={() => {
-                  fetchInitialData();
+                onInjectSuccess={(stId) => {
+                  const target = stations.find(s => s.station_id === stId);
+                  if (target) {
+                    setSelectedStation(target);
+                    fetchStationTelemetry(stId);
+                  }
                   sounds.playSuccessChime();
+                  setActiveTab('telemetry');
+                }}
+                onInjectionSuccess={(stId) => {
+                  const target = stations.find(s => s.station_id === stId);
+                  if (target) {
+                    setSelectedStation(target);
+                    fetchStationTelemetry(stId);
+                  }
+                  sounds.playSuccessChime();
+                  setActiveTab('telemetry');
                 }}
               />
             </div>

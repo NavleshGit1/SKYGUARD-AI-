@@ -340,13 +340,13 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
                 />
               )}
 
-              {/* Dedicated Left Y Axis when viewing Humidity alone — dynamic bounds for clear waveforms */}
+              {/* Dedicated Left Y Axis when viewing Humidity alone — auto bounds for clear dynamic waveforms */}
               {selectedParam === 'RH' && (
                 <YAxis
                   yAxisId="left"
                   stroke="#2DD4BF"
                   fontSize={11}
-                  domain={['dataMin - 3', 'dataMax + 3']}
+                  domain={['auto', 'auto']}
                   tickFormatter={(v) => `${Number(v).toFixed(1)}%`}
                 />
               )}
@@ -363,14 +363,14 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
                 />
               )}
 
-              {/* Right Y Axis: RH (in ALL mode, dynamic range) */}
+              {/* Right Y Axis: RH (in ALL mode, dynamic auto range) */}
               {selectedParam === 'ALL' && (
                 <YAxis
                   yAxisId="right-rh"
                   orientation="right"
                   stroke="#2DD4BF"
                   fontSize={10}
-                  domain={['dataMin - 5', 'dataMax + 5']}
+                  domain={['auto', 'auto']}
                   hide={true}
                 />
               )}
@@ -448,7 +448,7 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
                   name="Pressure (hPa)"
                   stroke="#818CF8"
                   strokeWidth={2}
-                  dot={selectedParam === 'PRES' ? renderInjectedFaultDot : false}
+                  dot={renderInjectedFaultDot}
                   activeDot={{ r: 5, fill: '#818CF8', stroke: '#FFF', strokeWidth: 2 }}
                 />
               )}
@@ -477,7 +477,7 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
                   name="Relative Humidity (%)"
                   stroke="#2DD4BF"
                   strokeWidth={2}
-                  dot={selectedParam === 'RH' ? renderInjectedFaultDot : false}
+                  dot={renderInjectedFaultDot}
                   activeDot={{ r: 5, fill: '#2DD4BF', stroke: '#FFF', strokeWidth: 2 }}
                 />
               )}
