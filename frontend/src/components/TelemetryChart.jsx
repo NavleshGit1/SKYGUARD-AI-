@@ -23,25 +23,35 @@ import {
 } from 'lucide-react';
 import { sounds } from '../utils/audio';
 
-// Crisp solid red dot ONLY rendered on injected fault / anomaly readings
-const renderInjectedFaultDot = (props) => {
+// Channel-specific crisp solid red dots rendered ONLY on the specific corrupted parameter line
+const createFaultDotRenderer = (dataKey, threshold) => (props) => {
   const { cx, cy, payload } = props;
-  if (!cx || !cy) return null;
-  if (payload && payload.is_anomaly) {
+  if (!cx || !cy || !payload) return null;
+  const rawVal = payload[dataKey];
+  const impVal = payload[`imputed_${dataKey}`];
+  
+  // Render red marker only if reading is anomalous AND this specific parameter deviated from AE clean manifold
+  const isCorrupted = payload.is_anomaly && impVal != null && rawVal != null && Math.abs(rawVal - impVal) >= threshold;
+  
+  if (isCorrupted) {
     return (
       <circle
-        key={`fault-dot-${cx}-${cy}`}
+        key={`fault-${dataKey}-${cx}-${cy}`}
         cx={cx}
         cy={cy}
-        r={5}
+        r={5.5}
         fill="#EF4444"
         stroke="#FFFFFF"
-        strokeWidth={1.5}
+        strokeWidth={2}
       />
     );
   }
   return null;
 };
+
+const renderTempFaultDot = createFaultDotRenderer('temperature', 0.8);
+const renderPresFaultDot = createFaultDotRenderer('pressure', 2.0);
+const renderRhFaultDot = createFaultDotRenderer('humidity', 3.5);
 
 const CustomTelemetryTooltip = ({ active, payload }) => {
   if (!active || !payload || !payload.length) return null;
@@ -419,7 +429,7 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
                   name="Temperature (°C)"
                   stroke="#38BDF8"
                   strokeWidth={2.5}
-                  dot={renderInjectedFaultDot}
+                  dot={renderTempFaultDot}
                   activeDot={{ r: 5, fill: '#38BDF8', stroke: '#FFF', strokeWidth: 2 }}
                 />
               )}
@@ -448,23 +458,23 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
                   name="Pressure (hPa)"
                   stroke="#818CF8"
                   strokeWidth={2}
-                  dot={renderInjectedFaultDot}
+                  dot={renderPresFaultDot}
                   activeDot={{ r: 5, fill: '#818CF8', stroke: '#FFF', strokeWidth: 2 }}
                 />
               )}
 
-              {/* 4. AE Imputed Pressure */}
-              {selectedParam === 'PRES' && (
+              {/* 4. AE Imputed Pressure (Available in ALL and PRES modes) */}
+              {(selectedParam === 'ALL' || selectedParam === 'PRES') && (
                 <Line
-                  yAxisId="left"
+                  yAxisId={selectedParam === 'PRES' ? 'left' : 'right-pres'}
                   type="monotone"
                   dataKey="imputed_pressure"
                   name="AE Imputed Pres (hPa)"
-                  stroke="#10B981"
-                  strokeWidth={2.4}
+                  stroke="#34D399"
+                  strokeWidth={2.2}
                   strokeDasharray="5 5"
                   dot={false}
-                  activeDot={{ r: 4, fill: '#10B981', stroke: '#FFF', strokeWidth: 1.5 }}
+                  activeDot={{ r: 4, fill: '#34D399', stroke: '#FFF', strokeWidth: 1.5 }}
                 />
               )}
 
@@ -477,23 +487,23 @@ export default function TelemetryChart({ stations = [], selectedStation, onSelec
                   name="Relative Humidity (%)"
                   stroke="#2DD4BF"
                   strokeWidth={2}
-                  dot={renderInjectedFaultDot}
+                  dot={renderRhFaultDot}
                   activeDot={{ r: 5, fill: '#2DD4BF', stroke: '#FFF', strokeWidth: 2 }}
                 />
               )}
 
-              {/* 6. AE Imputed Humidity */}
-              {selectedParam === 'RH' && (
+              {/* 6. AE Imputed Humidity (Available in ALL and RH modes) */}
+              {(selectedParam === 'ALL' || selectedParam === 'RH') && (
                 <Line
-                  yAxisId="left"
+                  yAxisId={selectedParam === 'RH' ? 'left' : 'right-rh'}
                   type="monotone"
                   dataKey="imputed_humidity"
                   name="AE Imputed Humidity (%)"
-                  stroke="#10B981"
-                  strokeWidth={2.4}
+                  stroke="#6EE7B7"
+                  strokeWidth={2.2}
                   strokeDasharray="5 5"
                   dot={false}
-                  activeDot={{ r: 4, fill: '#10B981', stroke: '#FFF', strokeWidth: 1.5 }}
+                  activeDot={{ r: 4, fill: '#6EE7B7', stroke: '#FFF', strokeWidth: 1.5 }}
                 />
               )}
             </ComposedChart>

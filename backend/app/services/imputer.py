@@ -73,9 +73,9 @@ class ValueImputer:
         rh_clean = healthy["humidity_pct"]
 
         # Identify which channels are faulted / spiked
-        t_is_corrupted = abs(t_raw - t_clean) > 2.5 or abs(deriv.get("dT_dt", 0.0)) > 1.5 or (shap_attributions and shap_attributions.get("temperature_c", 0) > 0.2)
-        p_is_corrupted = abs(p_raw - p_clean) > 6.0 or abs(deriv.get("dP_dt", 0.0)) > 3.0 or (shap_attributions and shap_attributions.get("pressure_hpa", 0) > 0.2)
-        rh_is_corrupted = abs(rh_raw - rh_clean) > 12.0 or phys.get("is_dew_violation", False) or (shap_attributions and shap_attributions.get("humidity_pct", 0) > 0.2)
+        t_is_corrupted = abs(t_raw - t_clean) > 2.0 or abs(deriv.get("dT_dt", 0.0)) > 1.0 or (shap_attributions and shap_attributions.get("temperature_c", 0) > 0.15)
+        p_is_corrupted = abs(p_raw - p_clean) > 3.0 or abs(deriv.get("dP_dt", 0.0)) > 1.5 or (shap_attributions and shap_attributions.get("pressure_hpa", 0) > 0.15)
+        rh_is_corrupted = abs(rh_raw - rh_clean) > 6.0 or phys.get("is_dew_violation", False) or (shap_attributions and shap_attributions.get("humidity_pct", 0) > 0.15)
 
         # Baseline assignment: restore corrupted channels from clean manifold
         t_imputed = round(t_clean if t_is_corrupted else t_raw, 1)
