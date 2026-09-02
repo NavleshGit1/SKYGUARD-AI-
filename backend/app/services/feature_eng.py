@@ -78,6 +78,7 @@ class MeteorologicalFeatureEngine:
         """
         Reduces station surface pressure to Mean Sea Level (MSL) Pressure (P_0)
         using the international standard hypsometric formula.
+        Guards against double-reduction when input pressure is already at MSLP scale.
         """
         if altitude_m <= 0.0:
             return round(station_pres_hpa, 2)
@@ -90,6 +91,9 @@ class MeteorologicalFeatureEngine:
             if factor <= 0:
                 return round(station_pres_hpa, 2)
             p_slp = station_pres_hpa * math.pow(factor, -5.257)
+            # If input was already MSLP, hypsometric reduction would produce > 1038 hPa (unphysical high)
+            if p_slp > 1038.0 and station_pres_hpa <= 1038.0:
+                return round(station_pres_hpa, 2)
             return round(p_slp, 2)
         except Exception:
             return round(station_pres_hpa, 2)

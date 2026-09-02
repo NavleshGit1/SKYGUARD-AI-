@@ -373,19 +373,25 @@ class HybridDetectorEnsemble:
 
     @staticmethod
     def _extract_model_vector(features: Dict[str, Any]) -> np.ndarray:
-        """Flattens feature dictionary into standard 8-dim model vector"""
+        """
+        Flattens feature dictionary into standard 8-dim model vector.
+        Uses hypsometrically normalized Sea Level Pressure (MSLP) so all stations
+        (Jaipur 431m, Delhi 216m, Coastal 10m) share the exact same physical pressure baseline.
+        """
         raw = features.get("raw", {})
         phys = features.get("physics_features", {})
         deriv = features.get("derivatives", {})
         roll = features.get("rolling_stats", {})
         clim = features.get("climatology_delta", {})
 
+        p_norm = phys.get("sea_level_pressure_hpa", raw.get("pressure_hpa", 1013.25))
+
         return np.array([
             raw.get("temperature_c", 25.0),
-            raw.get("pressure_hpa", 1013.25),
+            p_norm,
             raw.get("humidity_pct", 50.0),
             phys.get("dew_point_c", 15.0),
-            phys.get("sea_level_pressure_hpa", 1013.25),
+            p_norm,
             deriv.get("dT_dt", 0.0),
             roll.get("t_std_1h", 0.0),
             clim.get("t_delta_zscore", 0.0)
