@@ -16,11 +16,12 @@ ENV/
 .env.*.local
 .venv
 
-# Data & Models
+# Data (large raw files and local db)
 data/raw/*.csv
 !data/raw/.gitkeep
 data/processed/*.csv
 !data/processed/.gitkeep
+data/*.db
 models/*
 !models/.gitkeep
 !models/autoencoder.pt

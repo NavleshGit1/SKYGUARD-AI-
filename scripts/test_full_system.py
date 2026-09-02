@@ -26,6 +26,56 @@ from backend.app.services.health_score import SensorHealthEngine, _mann_kendall_
 
 BASE_URL = "http://localhost:8000"
 
+
+class HttpClient:
+    def __init__(self, base_url=BASE_URL):
+        self.base_url = base_url
+        self.use_live = False
+        try:
+            r = requests.get(f"{base_url}/api/v1/health", timeout=0.5)
+            if r.status_code == 200:
+                self.use_live = True
+        except Exception:
+            self.use_live = False
+
+        if not self.use_live:
+            from fastapi.testclient import TestClient
+            from backend.app.main import app
+            self._test_client = TestClient(app)
+        else:
+            self._test_client = None
+
+    def _strip(self, url):
+        return url.replace(self.base_url, "") if url.startswith(self.base_url) else url
+
+    def get(self, url, **kwargs):
+        if self.use_live:
+            return requests.get(url, **kwargs)
+        kwargs.pop("timeout", None)
+        return self._test_client.get(self._strip(url), **kwargs)
+
+    def post(self, url, **kwargs):
+        if self.use_live:
+            return requests.post(url, **kwargs)
+        kwargs.pop("timeout", None)
+        return self._test_client.post(self._strip(url), **kwargs)
+
+    def patch(self, url, **kwargs):
+        if self.use_live:
+            return requests.patch(url, **kwargs)
+        kwargs.pop("timeout", None)
+        return self._test_client.patch(self._strip(url), **kwargs)
+
+    def delete(self, url, **kwargs):
+        if self.use_live:
+            return requests.delete(url, **kwargs)
+        kwargs.pop("timeout", None)
+        return self._test_client.delete(self._strip(url), **kwargs)
+
+
+client = HttpClient(BASE_URL)
+
+
 class FullSystemIntegrationTests(unittest.TestCase):
     
     @classmethod
@@ -39,7 +89,7 @@ class FullSystemIntegrationTests(unittest.TestCase):
             "username": "admin@skyguard.ai",
             "password": "admin123"
         }
-        res = requests.post(f"{BASE_URL}/api/v1/auth/login", data=login_payload, timeout=5)
+        res = client.post(f"{BASE_URL}/api/v1/auth/login", data=login_payload, timeout=5)
         if res.status_code == 200:
             data = res.json()
             cls.token = data["access_token"]
@@ -54,7 +104,7 @@ class FullSystemIntegrationTests(unittest.TestCase):
 
     def test_01_health_and_diagnostics(self):
         """Verify health check and deep infrastructure diagnostics"""
-        res = requests.get(f"{BASE_URL}/api/v1/health", timeout=5)
+        res = client.get(f"{BASE_URL}/api/v1/health", timeout=5)
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertEqual(data["status"], "HEALTHY")
@@ -62,7 +112,7 @@ class FullSystemIntegrationTests(unittest.TestCase):
         self.assertIn("latency_ms", data["database"])
         self.assertIn("cache", data)
 
-        diag_res = requests.get(f"{BASE_URL}/api/v1/system/diagnostics", timeout=5)
+        diag_res = client.get(f"{BASE_URL}/api/v1/system/diagnostics", timeout=5)
         self.assertEqual(diag_res.status_code, 200)
         diag_data = diag_res.json()
         self.assertEqual(diag_data["status"], "OPERATIONAL")
@@ -72,46 +122,46 @@ class FullSystemIntegrationTests(unittest.TestCase):
         """Verify authentication, profile retrieval, and token refresh lifecycle"""
         self.assertIsNotNone(self.token)
         # Profile via /auth/me
-        res = requests.get(f"{BASE_URL}/api/v1/auth/me", headers=self.auth_headers, timeout=5)
+        res = client.get(f"{BASE_URL}/api/v1/auth/me", headers=self.auth_headers, timeout=5)
         self.assertEqual(res.status_code, 200)
         user_info = res.json()
         self.assertEqual(user_info["email"], "admin@skyguard.ai")
         self.assertEqual(user_info["role"], "admin")
 
         # Profile via /users/me
-        res_users = requests.get(f"{BASE_URL}/api/v1/users/me", headers=self.auth_headers, timeout=5)
+        res_users = client.get(f"{BASE_URL}/api/v1/users/me", headers=self.auth_headers, timeout=5)
         self.assertEqual(res_users.status_code, 200)
 
         # Refresh token
-        ref_res = requests.post(f"{BASE_URL}/api/v1/auth/refresh", json={"refresh_token": self.refresh_token}, timeout=5)
+        ref_res = client.post(f"{BASE_URL}/api/v1/auth/refresh", json={"refresh_token": self.refresh_token}, timeout=5)
         self.assertEqual(ref_res.status_code, 200)
         self.assertIn("access_token", ref_res.json())
         print(f" [PASS] Auth & Lifecycle: /auth/me, /users/me & token refresh verified for {user_info['email']}")
 
     def test_03_stations_endpoints(self):
         """Verify weather station discovery, profile details, aggregate rollups, and summary"""
-        res = requests.get(f"{BASE_URL}/api/v1/stations", timeout=5)
+        res = client.get(f"{BASE_URL}/api/v1/stations", timeout=5)
         self.assertEqual(res.status_code, 200)
         stations = res.json()
         self.assertGreaterEqual(len(stations), 5)
         station_id = stations[0]["station_id"]
         
         # Detail
-        detail_res = requests.get(f"{BASE_URL}/api/v1/stations/{station_id}", timeout=5)
+        detail_res = client.get(f"{BASE_URL}/api/v1/stations/{station_id}", timeout=5)
         self.assertEqual(detail_res.status_code, 200)
         detail = detail_res.json()
         self.assertEqual(detail["station_id"], station_id)
         
         # Summary
-        summary_res = requests.get(f"{BASE_URL}/api/v1/stations/stats/summary", timeout=5)
+        summary_res = client.get(f"{BASE_URL}/api/v1/stations/stats/summary", timeout=5)
         self.assertEqual(summary_res.status_code, 200)
         
         # Aggregates / Analytics
-        analytics_res = requests.get(f"{BASE_URL}/api/v1/stations/{station_id}/analytics?interval_minutes=60", timeout=5)
+        analytics_res = client.get(f"{BASE_URL}/api/v1/stations/{station_id}/analytics?interval_minutes=60", timeout=5)
         self.assertEqual(analytics_res.status_code, 200)
 
         # Readings query
-        readings_res = requests.get(f"{BASE_URL}/api/v1/stations/{station_id}/readings?limit=20", timeout=5)
+        readings_res = client.get(f"{BASE_URL}/api/v1/stations/{station_id}/readings?limit=20", timeout=5)
         self.assertEqual(readings_res.status_code, 200)
         
         print(f" [PASS] Stations endpoints: {len(stations)} stations discovered; detail, stats, analytics & readings verified")
@@ -145,12 +195,12 @@ class FullSystemIntegrationTests(unittest.TestCase):
             "Content-Type": "application/json",
             "X-Station-ID": st_id,
         }
-        no_sig_res = requests.post(f"{BASE_URL}/api/v1/ingest/telemetry", json=reading_payload, headers=no_sig_headers, timeout=5)
+        no_sig_res = client.post(f"{BASE_URL}/api/v1/ingest/telemetry", json=reading_payload, headers=no_sig_headers, timeout=5)
         self.assertEqual(no_sig_res.status_code, 401, "VULN-03 FIX: Unsigned requests must be rejected (401)")
 
         # 2. Valid Signature — use the station's api_secret_key (per-station beats global HMAC secret)
         # Fetch station detail to get the secret key used by the server
-        station_res = requests.get(f"{BASE_URL}/api/v1/stations/{st_id}", headers=self.auth_headers, timeout=5)
+        station_res = client.get(f"{BASE_URL}/api/v1/stations/{st_id}", headers=self.auth_headers, timeout=5)
         station_api_secret = None
         if station_res.status_code == 200:
             station_api_secret = station_res.json().get("api_secret_key")
@@ -171,7 +221,7 @@ class FullSystemIntegrationTests(unittest.TestCase):
             "X-Station-ID": st_id,
             "X-Station-Signature": valid_sig
         }
-        res = requests.post(f"{BASE_URL}/api/v1/ingest/telemetry", json=reading_payload, headers=headers, timeout=5)
+        res = client.post(f"{BASE_URL}/api/v1/ingest/telemetry", json=reading_payload, headers=headers, timeout=5)
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertEqual(data["status"], "PROCESSED")
@@ -182,14 +232,14 @@ class FullSystemIntegrationTests(unittest.TestCase):
             "X-Station-ID": st_id,
             "X-Station-Signature": "0000000000000000000000000000000000000000000000000000000000000000"
         }
-        bad_res = requests.post(f"{BASE_URL}/api/v1/ingest/telemetry", json=reading_payload, headers=bad_headers, timeout=5)
+        bad_res = client.post(f"{BASE_URL}/api/v1/ingest/telemetry", json=reading_payload, headers=bad_headers, timeout=5)
         self.assertEqual(bad_res.status_code, 401)
 
         print(f" [PASS] Telemetry Ingestion: Unsigned rejected (401 VULN-03), Valid signature accepted ({data.get('pipeline_latency_ms')}ms), Tampered signature rejected (401 Quarantined)")
 
     def test_05_anomalies_and_resolutions(self):
         """Verify anomalies querying, single incident detail, single resolution, and bulk resolution"""
-        res = requests.get(f"{BASE_URL}/api/v1/anomalies?limit=10", timeout=5)
+        res = client.get(f"{BASE_URL}/api/v1/anomalies?limit=10", timeout=5)
         self.assertEqual(res.status_code, 200)
         anomalies = res.json()
         self.assertIsInstance(anomalies, list)
@@ -199,12 +249,12 @@ class FullSystemIntegrationTests(unittest.TestCase):
             evt_id = first_event["event_id"]
 
             # Query single anomaly (read — no auth required)
-            single_res = requests.get(f"{BASE_URL}/api/v1/anomalies/{evt_id}", timeout=5)
+            single_res = client.get(f"{BASE_URL}/api/v1/anomalies/{evt_id}", timeout=5)
             self.assertEqual(single_res.status_code, 200)
             self.assertEqual(single_res.json()["event_id"], evt_id)
 
             # Verify unauthenticated write is rejected (VULN-05 FIX)
-            unauth_patch = requests.patch(
+            unauth_patch = client.patch(
                 f"{BASE_URL}/api/v1/anomalies/{evt_id}/resolve",
                 json={"status": "ACKNOWLEDGED", "resolution_notes": "Unauthenticated attempt"},
                 timeout=5
@@ -212,7 +262,7 @@ class FullSystemIntegrationTests(unittest.TestCase):
             self.assertEqual(unauth_patch.status_code, 401, "VULN-05 FIX: Unauthenticated anomaly resolve must return 401")
 
             # Single resolution (authenticated — VULN-05 FIX: auth headers required)
-            patch_res = requests.patch(
+            patch_res = client.patch(
                 f"{BASE_URL}/api/v1/anomalies/{evt_id}/resolve",
                 json={"status": "ACKNOWLEDGED", "resolution_notes": "Under review"},
                 headers=self.auth_headers,
@@ -222,7 +272,7 @@ class FullSystemIntegrationTests(unittest.TestCase):
             self.assertEqual(patch_res.json()["status"], "ACKNOWLEDGED")
 
             # Bulk resolve (authenticated — VULN-05 FIX: auth headers required)
-            bulk_res = requests.post(
+            bulk_res = client.post(
                 f"{BASE_URL}/api/v1/anomalies/bulk-resolve",
                 json={"event_ids": [evt_id], "status": "RESOLVED", "resolution_notes": "Verified clean"},
                 headers=self.auth_headers,
@@ -236,13 +286,13 @@ class FullSystemIntegrationTests(unittest.TestCase):
 
     def test_06_observability_and_prometheus_metrics(self):
         """Verify real-time performance metrics and Prometheus exposition"""
-        res = requests.get(f"{BASE_URL}/api/v1/metrics", timeout=5)
+        res = client.get(f"{BASE_URL}/api/v1/metrics", timeout=5)
         self.assertEqual(res.status_code, 200)
         summary = res.json()
         self.assertIn("total_readings_ingested", summary)
         self.assertIn("latency_profile_ms", summary)
         
-        prom_res = requests.get(f"{BASE_URL}/api/v1/metrics/prometheus", timeout=5)
+        prom_res = client.get(f"{BASE_URL}/api/v1/metrics/prometheus", timeout=5)
         self.assertEqual(prom_res.status_code, 200)
         self.assertIn("skyguard_ingest_total", prom_res.text)
         self.assertIn("skyguard_pipeline_latency_ms", prom_res.text)
@@ -250,14 +300,14 @@ class FullSystemIntegrationTests(unittest.TestCase):
 
     def test_07_dead_letter_queue(self):
         """Verify Dead Letter Queue listing, filtering, and purge endpoints"""
-        res = requests.get(f"{BASE_URL}/api/v1/dlq", headers=self.auth_headers, timeout=5)
+        res = client.get(f"{BASE_URL}/api/v1/dlq", headers=self.auth_headers, timeout=5)
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertIn("total_quarantined", data)
         self.assertIn("records", data)
 
         # Test purge endpoint
-        purge_res = requests.delete(f"{BASE_URL}/api/v1/dlq/purge?older_than_days=90", headers=self.auth_headers, timeout=5)
+        purge_res = client.delete(f"{BASE_URL}/api/v1/dlq/purge?older_than_days=90", headers=self.auth_headers, timeout=5)
         self.assertEqual(purge_res.status_code, 200)
         self.assertEqual(purge_res.json()["status"], "PURGED")
         print(f" [PASS] Dead-Letter Queue: Quarantined records = {data['total_quarantined']}, Purge endpoint verified")
@@ -272,48 +322,48 @@ class FullSystemIntegrationTests(unittest.TestCase):
             "magnitude": 25.0,
             "duration_ticks": 10
         }
-        inj_res = requests.post(f"{BASE_URL}/api/v1/simulator/inject", json=fault_payload, timeout=5)
+        inj_res = client.post(f"{BASE_URL}/api/v1/simulator/inject", json=fault_payload, timeout=5)
         self.assertEqual(inj_res.status_code, 200)
         self.assertEqual(inj_res.json()["status"], "TRIGGERED")
 
         # 2. Check active injections
-        res = requests.get(f"{BASE_URL}/api/v1/simulator/active", timeout=5)
+        res = client.get(f"{BASE_URL}/api/v1/simulator/active", timeout=5)
         self.assertEqual(res.status_code, 200)
         sim_data = res.json()
         self.assertIsInstance(sim_data, dict)
 
         # 3. Clear active injection
-        clear_res = requests.delete(f"{BASE_URL}/api/v1/simulator/active/AWS-DEL-01", timeout=5)
+        clear_res = client.delete(f"{BASE_URL}/api/v1/simulator/active/AWS-DEL-01", timeout=5)
         self.assertEqual(clear_res.status_code, 200)
         print(f" [PASS] Simulator Workbench: Injection triggered, active state polled, and cleared successfully")
 
     def test_09_model_registry(self):
         """Verify Model Registry listing, active deployed models, and model metadata inspection"""
-        res = requests.get(f"{BASE_URL}/api/v1/models", timeout=5)
+        res = client.get(f"{BASE_URL}/api/v1/models", timeout=5)
         self.assertEqual(res.status_code, 200)
         models = res.json()
         self.assertGreaterEqual(len(models), 4)
 
-        active_res = requests.get(f"{BASE_URL}/api/v1/models/active", timeout=5)
+        active_res = client.get(f"{BASE_URL}/api/v1/models/active", timeout=5)
         self.assertEqual(active_res.status_code, 200)
         active_models = active_res.json()
         self.assertGreaterEqual(len(active_models), 3)
 
         first_id = models[0]["model_id"]
-        detail_res = requests.get(f"{BASE_URL}/api/v1/models/{first_id}", timeout=5)
+        detail_res = client.get(f"{BASE_URL}/api/v1/models/{first_id}", timeout=5)
         self.assertEqual(detail_res.status_code, 200)
         self.assertEqual(detail_res.json()["model_id"], first_id)
         print(f" [PASS] Model Registry: {len(models)} models registered, {len(active_models)} active production checkpoints")
 
     def test_10_cryptographic_audit_trail(self):
         """Verify immutable SHA-256 hash-chain audit logging and mathematical verification"""
-        logs_res = requests.get(f"{BASE_URL}/api/v1/audit?limit=25", timeout=5)
+        logs_res = client.get(f"{BASE_URL}/api/v1/audit?limit=25", timeout=5)
         self.assertEqual(logs_res.status_code, 200)
         logs = logs_res.json()
         self.assertIsInstance(logs, list)
 
         # Verify integrity from Genesis block
-        verify_res = requests.get(f"{BASE_URL}/api/v1/audit/verify", timeout=5)
+        verify_res = client.get(f"{BASE_URL}/api/v1/audit/verify", timeout=5)
         self.assertEqual(verify_res.status_code, 200)
         vdata = verify_res.json()
         self.assertEqual(vdata["status"], "VERIFIED_VALID")
@@ -322,21 +372,21 @@ class FullSystemIntegrationTests(unittest.TestCase):
     def test_11_admin_thresholds_and_jobs(self):
         """Verify admin threshold retrieval, updates, and retraining job listing"""
         # Thresholds (authenticated)
-        res = requests.get(f"{BASE_URL}/api/v1/admin/thresholds", headers=self.auth_headers, timeout=5)
+        res = client.get(f"{BASE_URL}/api/v1/admin/thresholds", headers=self.auth_headers, timeout=5)
         self.assertEqual(res.status_code, 200)
         status_data = res.json()
         self.assertIn("thresholds", status_data)
 
         # VULN-06 FIX: /admin/thresholds/live is now protected — must return 401 without auth
-        live_unauth = requests.get(f"{BASE_URL}/api/v1/admin/thresholds/live", timeout=5)
+        live_unauth = client.get(f"{BASE_URL}/api/v1/admin/thresholds/live", timeout=5)
         self.assertEqual(live_unauth.status_code, 401, "VULN-06 FIX: ML threshold endpoint must require authentication")
 
         # /admin/thresholds/live with auth — should work
-        live_res = requests.get(f"{BASE_URL}/api/v1/admin/thresholds/live", headers=self.auth_headers, timeout=5)
+        live_res = client.get(f"{BASE_URL}/api/v1/admin/thresholds/live", headers=self.auth_headers, timeout=5)
         self.assertEqual(live_res.status_code, 200)
 
         # Jobs listing
-        jobs_res = requests.get(f"{BASE_URL}/api/v1/admin/jobs", headers=self.auth_headers, timeout=5)
+        jobs_res = client.get(f"{BASE_URL}/api/v1/admin/jobs", headers=self.auth_headers, timeout=5)
         self.assertEqual(jobs_res.status_code, 200)
         print(f" [PASS] Admin Controls: Thresholds verified ({status_data['thresholds'].get('fusion_threshold')}), /thresholds/live secured (VULN-06), Retrain Jobs polled")
 
